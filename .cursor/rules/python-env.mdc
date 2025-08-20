@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+When installed packages and run python, always activate the conda env by using `conda activate toxirag`.

@@ -1,0 +1,57 @@
+# Web framework and server
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+
+# Data validation and settings
+pydantic==2.10.3
+pydantic-settings==2.6.1
+
+# Vector database client
+qdrant-client==1.12.1
+
+# Logging and utilities
+loguru==0.7.3
+httpx==0.28.1
+python-dotenv==1.0.1
+tenacity==9.0.0
+rich==13.9.4
+orjson==3.10.12
+
+# RAG evaluation
+ragas==0.3.2
+
+# LLM providers
+anthropic==0.48.0
+cohere==5.17.4
+
+# Vector databases
+lancedb==0.17.2
+
+# UI framework
+streamlit==1.42.0
+
+# AI framework
+agno==0.8.15
+
+# Scientific computing
+numpy==2.2.0
+scipy==1.14.1
+scikit-learn==1.6.0
+pandas==2.3.1
+pyarrow>=21.0.0
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+pytest-cov==6.0.0
+
+# Type hints
+typing-extensions==4.12.2
+
+# Type stubs
+types-requests>=2.32.0
+types-urllib3>=1.26.0
+
+# Development dependencies
+ruff==0.8.4
+mypy==1.14.1 
