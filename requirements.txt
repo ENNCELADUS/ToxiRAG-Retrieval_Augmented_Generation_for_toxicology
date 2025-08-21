@@ -23,6 +23,7 @@ ragas==0.3.2
 # LLM providers
 anthropic==0.48.0
 cohere==5.17.4
+google-genai==1.31.0
 
 # Vector databases
 lancedb==0.17.2
