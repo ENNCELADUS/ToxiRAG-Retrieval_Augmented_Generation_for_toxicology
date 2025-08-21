@@ -73,12 +73,12 @@ Success criteria
 - Sample `.md` parses into structured dicts with normalized units and metadata
 - Chunks upserted to LanceDB; embeddings created with `text-embedding-3-large`
 
-### M2 — Vector store and hybrid retriever
-- [ ] Implement `retriever/retriever.py` with hybrid search (embedding + BM25/keywords)
-- [ ] Implement filters (by section/type), scoring, and deduplication
-- [ ] Implement evidence pack builder with bracketed numerals `[E1]`, section tags (e.g., `[E2 · 实验分组与给药]`), and metadata
-- [ ] Unit tests for retrieval ranking and evidence packing
-- [ ] **Git**: Commit M2 to beta branch and push (tests passing)
+### M2 — Vector store and hybrid retriever ✅ COMPLETED
+- [x] Implement `retriever/retriever.py` with hybrid search (embedding + BM25/keywords)
+- [x] Implement filters (by section/type), scoring, and deduplication
+- [x] Implement evidence pack builder with bracketed numerals `[E1]`, section tags (e.g., `[E2 · 实验分组与给药]`), and metadata
+- [x] Unit tests for retrieval ranking and evidence packing
+- [x] **Git**: Commit M2 to beta branch and push (tests passing)
 
 Deliverables
 - `retriever/retriever.py` with hybrid scoring and evidence packing
