@@ -1,0 +1,81 @@
+---
+description: Guidelines for LLM integration and agentic reasoning in ToxiRAG
+alwaysApply: false
+globs: ["llm/**", "**/*llm*", "**/*agent*"]
+---
+
+# ToxiRAG LLM Integration Guidelines
+
+## Prompt Engineering for Toxicology
+
+### System Prompts
+- Establish expertise in toxicology and pharmacology
+- Emphasize evidence-based reasoning and proper citation
+- Include guidelines for handling uncertain or missing data
+- Specify response format with required citation structure
+
+### Query Decomposition
+- Break complex toxicology questions into specific sub-queries
+- Identify key parameters: compounds, dosages, endpoints, timelines
+- Separate mechanistic questions from quantitative data queries
+- Plan retrieval strategy based on question type
+
+### Evidence Integration
+- Synthesize information from multiple toxicology papers
+- Compare and contrast findings across different studies
+- Highlight conflicting results and potential explanations
+- Maintain traceability to original sources
+
+## Response Formatting
+
+### Citation Requirements
+- Use bracketed format: `[E1 · 机制研究结果]` for all references
+- Include section context in citations (mechanism, data table, etc.)
+- Link quantitative claims to specific data tables
+- Reference methodology sections for experimental details
+
+### Uncertainty Handling
+- Explicitly state when evidence is insufficient
+- Distinguish between "unknown" and "not mentioned" in sources
+- Indicate confidence levels for different claims
+- Suggest what additional evidence would be needed
+
+### Toxicology-Specific Formatting
+- Use proper scientific notation for measurements
+- Include units and statistical significance where relevant
+- Format dose-response relationships clearly
+- Present timelines and experimental designs accurately
+
+## Guardrails and Validation
+
+### Evidence Requirements
+- Refuse to answer questions without supporting evidence
+- Require minimum number of sources for quantitative claims
+- Validate that citations actually support the claims made
+- Cross-check for consistency across referenced sources
+
+### Safety Considerations
+- Never provide specific medical or treatment advice
+- Clarify the research/preclinical nature of toxicology data
+- Avoid extrapolating beyond what the evidence supports
+- Include appropriate disclaimers for animal study data
+
+### Quality Assurance
+- Verify all citations link to actual content in the knowledge base
+- Check that quantitative values match the source data
+- Ensure response completeness without overstepping evidence
+- Maintain consistent terminology across responses
+
+## Tool Usage Patterns
+
+### Retrieval Strategies
+- Use hybrid search for comprehensive coverage
+- Filter by section type based on query nature
+- Adjust vector/BM25 weights based on query specificity
+- Implement iterative refinement for complex questions
+
+### Multi-step Reasoning
+- Plan retrieval sequence for complex multi-part questions
+- Aggregate evidence before generating final response
+- Re-query for clarification when initial results are ambiguous
+- Build comprehensive evidence packs for synthesis

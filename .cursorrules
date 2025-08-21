@@ -1,0 +1,64 @@
+# ToxiRAG - Retrieval Augmented Generation for Toxicology
+
+You are working on ToxiRAG, a specialized RAG system for toxicology research that processes Chinese and English toxicology papers to provide evidence-based answers with proper citations.
+
+## Project Overview
+
+This is a toxicology-focused RAG system that:
+- Ingests and normalizes toxicology study data from markdown documents
+- Provides hybrid search (vector + BM25) over structured toxicology knowledge
+- Generates evidence-based responses with bracketed citations: `[E1 · 实验分组与给药]`
+- Handles bilingual content (Chinese/English) and domain-specific terminology
+- Follows strict data normalization standards for toxicology measurements
+
+## Key Technologies
+
+- **Vector Database**: LanceDB for document embeddings and metadata
+- **Embeddings**: OpenAI text-embedding-3-large
+- **LLM**: GPT-5-nano (primary), Gemini 2.5-flash (optional)
+- **Framework**: agno for agentic orchestration
+- **Testing**: pytest with realistic toxicology data
+- **UI**: Streamlit for ingestion and Q&A interface
+
+## Architecture
+
+```
+ingest/     - Markdown parsing, normalization, chunking
+retriever/  - Hybrid search and evidence pack building  
+llm/        - Agentic reasoning and LLM orchestration
+config/     - Centralized settings with pydantic-settings
+utils/      - Logging and shared utilities
+tests/      - Comprehensive test suite with real data
+```
+
+## Critical Domain Rules
+
+1. **Units Normalization**: Always convert to standard units (mm³ for tumor volume, mg/kg for dose)
+2. **Missing Data**: Use `未说明` instead of null/empty for unknown values
+3. **Citations**: Format as `[E1 · section_name]` with source page tracking
+4. **Evidence-Based**: All responses must cite specific paper sections
+5. **Bilingual Support**: Handle mixed Chinese/English toxicology content
+6. **Data Validation**: Ensure biological plausibility of measurements
+
+## Current Status
+
+- ✅ M0: Environment and config setup complete
+- ✅ M1: Markdown parsing and normalization complete  
+- ✅ M2: Hybrid retriever and evidence packing complete
+- 🔄 M3: Agentic orchestration (next milestone)
+
+## Testing Standards
+
+- Use real data from `data/summaries/肝癌.md` (3+ papers per test)
+- Mock external APIs but use realistic data structures
+- Test bilingual content and edge cases
+- Maintain 61+ passing tests
+
+## Development Workflow
+
+- **Environment**: Always use `conda activate toxirag` for all Python work
+- **Git Flow**: Work in `beta` branch, commit after each milestone completion
+- **Plan Updates**: Mark `[ ]` to `[x]` in `plan.md` when tasks are completed
+- **Testing**: All 61+ tests must pass before any git commits
+
+Follow the detailed rules in `.cursor/rules/` for specific guidance on coding standards, architecture, domain handling, testing, and LLM integration.

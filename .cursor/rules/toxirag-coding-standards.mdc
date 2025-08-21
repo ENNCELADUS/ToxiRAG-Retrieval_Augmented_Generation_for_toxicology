@@ -1,0 +1,56 @@
+---
+description: ToxiRAG coding standards and conventions for toxicology data processing and RAG implementation
+alwaysApply: true
+---
+
+# ToxiRAG Coding Standards
+
+## Code Style & Structure
+
+- Use descriptive variable names that reflect toxicology domain concepts (e.g., `tumor_volume_mm3`, `dose_mg_per_kg`, `inhibition_rate_percent`)
+- Follow Python PEP 8 with 88-character line limit (Black formatting)
+- Use type hints for all function parameters and return values, especially for data structures containing toxicology data
+- Prefer dataclasses over dictionaries for structured toxicology data (experiments, results, citations)
+
+## Async/Await Patterns
+
+- All database operations (LanceDB, embeddings) should be async
+- Use `AsyncMock` in tests for async functions
+- Properly handle async context managers for database connections
+- Always await embedding generation calls
+
+## Error Handling
+
+- Use specific exception types for domain errors (e.g., `ToxicologyDataError`, `RetrievalError`)
+- Log errors with context about what toxicology data was being processed
+- Gracefully handle missing or malformed toxicology data with default values (`未说明`)
+- Include source page information in error messages when available
+
+## Testing Standards
+
+- Always create unit tests with realistic data from actual toxicology papers
+- Use real examples from `data/summaries/肝癌.md` for test fixtures
+- Test with multiple papers' data, not just one
+- Mock external dependencies (OpenAI embeddings, database connections) but use real data structures
+- Include edge cases for malformed toxicology data
+
+## Data Handling
+
+- Always normalize units according to the established conventions (mm³ for tumor volume, mg/kg for dose, etc.)
+- Use the standardized citation format: `[E1 · 实验分组与给药]`
+- Store original values alongside normalized ones for traceability
+- Include metadata about units version and calculation methods
+- Handle bilingual content (Chinese/English) properly
+
+## Python Environment
+
+- When installing packages and running python, always activate the conda env by using `conda activate toxirag`
+- Ensure all development work happens within the toxirag conda environment
+- Include environment activation in scripts and documentation examples
+
+## Documentation
+
+- Include docstrings with examples using toxicology domain terminology
+- Document expected data formats and units for toxicology parameters
+- Provide usage examples with realistic toxicology study scenarios
+- Reference specific sections of toxicology papers when applicable
