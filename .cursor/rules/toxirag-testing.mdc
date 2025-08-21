@@ -67,3 +67,26 @@ alwaysApply: true
 - Test with realistic dataset sizes (100s of documents)
 - Verify memory usage doesn't grow unbounded
 - Test concurrent access patterns for shared resources
+
+## API Key Security for Testing
+
+### Real API Key Usage
+- **CRITICAL**: Only use real API keys for integration testing when necessary
+- Always use conditional skipping with `@pytest.mark.skipif(not API_KEY)` for real API tests
+- Prefer mocked tests for unit testing; use real APIs only for integration validation
+
+### Security Protocol
+- **FORGET API KEYS**: After using real API keys for testing, immediately clear them from memory/variables
+- Never commit actual API keys to version control
+- Use environment variables and .env files (with .env in .gitignore)
+- Rotate API keys regularly if used in testing
+- In production testing, use dedicated test API keys with limited quotas
+
+### Example Safe Usage
+```python
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+# Use for testing...
+# After testing:
+GOOGLE_API_KEY = None  # Clear from memory
+del GOOGLE_API_KEY     # Remove variable
+```

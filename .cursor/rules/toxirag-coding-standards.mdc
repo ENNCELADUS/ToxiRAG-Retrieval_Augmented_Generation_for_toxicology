@@ -48,6 +48,30 @@ alwaysApply: true
 - Ensure all development work happens within the toxirag conda environment
 - Include environment activation in scripts and documentation examples
 
+## Dependency Management
+
+### Package Installation Protocol
+- **ALWAYS UPDATE requirements.txt**: After installing any new package with `pip install`, immediately add it to `requirements.txt`
+- Use specific version pinning when possible: `package==1.2.3` or compatible versions: `package>=1.2.0,<2.0.0`
+- Install in conda environment: `conda activate toxirag && pip install package_name`
+- Document the package purpose in a comment if not obvious
+
+### Requirements.txt Maintenance
+```bash
+# After installing new package:
+conda activate toxirag
+pip install new-package==1.2.3
+echo "new-package==1.2.3  # Purpose: description" >> requirements.txt
+
+# Or update existing:
+pip freeze | grep new-package >> requirements.txt
+```
+
+### Version Control
+- Commit requirements.txt changes with the code that uses the new dependency
+- Include dependency rationale in commit messages
+- Test installation on clean environment periodically
+
 ## Documentation
 
 - Include docstrings with examples using toxicology domain terminology
