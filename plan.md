@@ -23,13 +23,20 @@ A concise, iterative plan to deliver a RAG-supported AI agent for liver cancer t
 - Public API surface in `api/` (optional later)
 - Docker + cloud deployment (later)
 
+## Git Workflow
+- **Beta branch**: All milestone work happens in `beta` branch
+- **Commit after milestone**: Commit and push after each milestone passes tests
+- **Commit format**: `feat: MX-MY complete - description` with detailed body
+- **Test requirement**: All tests must pass before commit/push
+
 ## Milestones (with checklists)
 
-### M0 — Environment, config, and scaffolding
-- [ ] Confirm conda env exists and activate: `conda activate toxirag`
-- [ ] Add `.env.example` with `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `OPENAI_EMBED_MODEL`, `LANCEDB_URI`, `COLLECTION_NAME`, `RETRIEVAL_TOP_K`
-- [ ] Add `scripts/` CLI entrypoints skeleton: `ingest_md.py`, `reindex.py`, `eval_run.py`
-- [ ] Wire up logging and settings (`pydantic-settings`)
+### M0 — Environment, config, and scaffolding ✅ COMPLETED
+- [x] Confirm conda env exists and activate: `conda activate toxirag`
+- [x] Add `.env.example` with `OPENAI_API_KEY`, `GOOGLE_API_KEY`, `OPENAI_EMBED_MODEL`, `LANCEDB_URI`, `COLLECTION_NAME`, `RETRIEVAL_TOP_K`
+- [x] Add `scripts/` CLI entrypoints skeleton: `ingest_md.py`, `reindex.py`, `eval_run.py`
+- [x] Wire up logging and settings (`pydantic-settings`)
+- [x] **Git**: Create beta branch, commit M0 changes
 
 Deliverables
 - `.env.example` and `settings.py` (pydantic-settings)
@@ -39,9 +46,9 @@ Success criteria
 - Streamlit boots and reads keys from env
 - Settings validated; LanceDB URI defaults correctly
 
-### M1 — Markdown parsing, normalization, and ingestion
-- [ ] Implement `ingest/markdown_schema.py` to parse the fixed template to structured dicts
-- [ ] Implement normalization utils (units, enums, table parsing) with rules:
+### M1 — Markdown parsing, normalization, and ingestion ✅ COMPLETED
+- [x] Implement `ingest/markdown_schema.py` to parse the fixed template to structured dicts
+- [x] Implement normalization utils (units, enums, table parsing) with rules:
   - Unknown/omitted → `未说明`
   - Timepoints → `Day N`; allow `Day N+M` in raw; store canonical day `N+M`
   - 肿瘤体积 (tumor volume): mm³; accept `mm^3`, `cm^3`, `mL`; convert `1 cm³ = 1000 mm³`, `1 mL = 1000 mm³`
@@ -53,9 +60,10 @@ Success criteria
   - 性别 (sex): {male, female, mixed, 未说明}
   - 品系 (strain): keep raw + `strain_norm` if exact match to {C57BL/6, BALB/c, KM, SD}
   - Persist metadata: `units_version = "v1.0"`, `calc_method`, `dose_frequency_norm`
-- [ ] Implement chunking strategy (by section + token-limit fallback)
-- [ ] Implement `ingest/ingest_local.py` to embed with OpenAI and upsert into LanceDB
-- [ ] Write unit tests for parsing, normalization, chunking, and upsert
+- [x] Implement chunking strategy (by section + token-limit fallback)
+- [x] Implement `ingest/ingest_local.py` to embed with OpenAI and upsert into LanceDB
+- [x] Write unit tests for parsing, normalization, chunking, and upsert
+- [x] **Git**: Commit M0-M1 to beta branch and push (39 tests passing)
 
 Deliverables
 - `ingest/markdown_schema.py`, `ingest/normalization.py`, `ingest/ingest_local.py`
@@ -70,6 +78,7 @@ Success criteria
 - [ ] Implement filters (by section/type), scoring, and deduplication
 - [ ] Implement evidence pack builder with bracketed numerals `[E1]`, section tags (e.g., `[E2 · 实验分组与给药]`), and metadata
 - [ ] Unit tests for retrieval ranking and evidence packing
+- [ ] **Git**: Commit M2 to beta branch and push (tests passing)
 
 Deliverables
 - `retriever/retriever.py` with hybrid scoring and evidence packing
@@ -84,6 +93,7 @@ Success criteria
 - [ ] Implement `llm/agentic_pipeline.py` to: (a) decompose queries into sub-queries, (b) call retriever, (c) format evidence packs, (d) draft answers with reasoning tools
 - [ ] Add guardrails: answer only from evidence; cite sources; refuse if insufficient evidence
 - [ ] Unit tests with mocked LLM calls validating prompts and outputs
+- [ ] **Git**: Commit M3 to beta branch and push (tests passing)
 
 Deliverables
 - `llm/agentic_pipeline.py` with prompt templates and guardrails
@@ -99,6 +109,7 @@ Success criteria
 - [ ] Add configurable params (top_k, temperature, provider)
 - [ ] Display evidence sources with stable IDs and sections
 - [ ] Smoke test end-to-end locally
+- [ ] **Git**: Commit M4 to beta branch and push (E2E test passing)
 
 Deliverables
 - Working UI flows for ingest and Q&A
@@ -113,6 +124,7 @@ Success criteria
 - [ ] Implement RAGAS or custom checks for grounding and citation coverage
 - [ ] Add `tests/e2e/test_rag_flow.py` covering ingest→retrieve→answer→citations
 - [ ] Add coverage target (e.g., ≥70%) and CI-ready test command
+- [ ] **Git**: Commit M5 to beta branch and push (all tests passing)
 
 Deliverables
 - `eval/` configs and gold answers
@@ -125,6 +137,7 @@ Success criteria
 - [ ] Add `readme` Quickstart, Troubleshooting, and FAQ for data format
 - [ ] Provide `scripts` usage examples and sample `.md` in `data/samples/`
 - [ ] Optional: implement `api/` FastAPI endpoints mirroring app flows
+- [ ] **Git**: Final commit M6 to beta branch, merge to main
 
 Deliverables
 - Updated `README.md`, samples in `data/samples/`, script examples
