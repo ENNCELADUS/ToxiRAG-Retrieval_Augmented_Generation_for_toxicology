@@ -1,0 +1,61 @@
+---
+description: Domain-specific guidelines for toxicology data handling in ToxiRAG
+alwaysApply: true
+---
+
+# ToxiRAG Toxicology Domain Guidelines
+
+## Toxicology Data Standards
+
+### Units and Measurements
+- **Tumor volume**: Always normalize to mm³ (accept mm³, cm³, mL with proper conversion)
+- **Body weight**: Normalize to grams (g) from kg when needed  
+- **Organ mass**: Normalize to milligrams (mg) from grams when needed
+- **Drug dosage**: Store as mg/kg with frequency normalization
+- **Timeline**: Use days since inoculation, convert weeks to days when explicit
+
+### Data Quality Standards
+- Use `未说明` for unknown/missing values instead of null, empty, or "unknown"
+- Preserve original values alongside normalized ones
+- Include calculation methods when volume is computed from dimensions
+- Store units_version metadata for traceability
+
+### Citation and Source Tracking
+- Use format: `[E1 · 实验分组与给药]` for evidence citations
+- Include original page numbers and table references
+- Link citations to specific sections of source papers
+- Maintain bidirectional mapping between citations and source content
+
+## Toxicology Terminology
+
+### Study Types
+- Recognize: 移植瘤模型, 细胞毒性实验, 机制研究, 剂量效应研究
+- Handle both Chinese and English terminology appropriately
+- Standardize study type classifications across papers
+
+### Biological Markers
+- Properly handle cytokine names (IL-6, TNF-α, etc.)
+- Recognize tumor markers and EMT indicators (E-cadherin, N-cadherin, Snail, Twist)
+- Store statistical significance indicators (p-values, confidence intervals)
+
+### Experimental Parameters
+- Animal strains: Normalize common strains (C57BL/6, BALB/c, KM, SD)
+- Sex classifications: {male, female, mixed, 未说明}
+- Administration routes: Standardize abbreviations (iv, ip, po, etc.)
+- Frequency codes: {qd, q2d, q3d, qod, qwk, bid, tid, 未说明}
+
+## Data Validation Rules
+
+- Validate dose ranges are reasonable for toxicology studies
+- Check that timeline events are in logical order
+- Ensure tumor volume values are within biological plausibility
+- Verify statistical values (p-values between 0 and 1, etc.)
+- Flag unusual measurement units for manual review
+
+## Search and Retrieval Patterns
+
+- Prioritize mechanism sections for mechanistic queries
+- Weight data tables higher for quantitative questions  
+- Consider both Chinese and English terms in search queries
+- Use section type filtering for targeted retrieval
+- Include experimental context in similarity calculations

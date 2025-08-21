@@ -1,0 +1,69 @@
+---
+description: Architecture patterns and module organization for ToxiRAG
+alwaysApply: true
+---
+
+# ToxiRAG Architecture Guidelines
+
+## Module Organization
+
+- `ingest/` - Data parsing, normalization, and chunking for toxicology documents
+- `retriever/` - Hybrid search with vector similarity and BM25 for toxicology content
+- `llm/` - Agentic reasoning and LLM orchestration with evidence-based responses
+- `config/` - Centralized settings using pydantic-settings
+- `utils/` - Shared utilities (logging, helpers)
+- `tests/` - Mirror the main package structure with comprehensive test coverage
+
+## Data Flow Patterns
+
+- Raw markdown → Parsed structure → Normalized data → Chunked content → Embedded vectors → Indexed in LanceDB
+- Query → Vector search + BM25 → Filtered results → Evidence pack → LLM reasoning → Cited response
+- Always preserve traceability from final answer back to source toxicology papers
+
+## Vector Database Operations
+
+- Use LanceDB as primary vector store with structured schema for toxicology metadata
+- Embed content with section context for better retrieval relevance
+- Include both content and metadata in search operations
+- Implement proper deduplication based on content similarity
+
+## Evidence-Based Responses
+
+- All LLM responses must include bracketed citations linking to specific paper sections
+- Evidence packs should contain source page numbers and calculation methods
+- Refuse to answer when insufficient evidence exists in the knowledge base
+- Maintain chain of reasoning from query to evidence to final answer
+
+## Configuration Management
+
+- Use environment variables for API keys and sensitive configuration
+- Centralize all settings in `config/settings.py` with validation
+- Support both development and production configurations
+- Include reasonable defaults for toxicology-specific parameters
+
+## Logging and Observability
+
+- Log all major operations with structured data including document titles and section types
+- Include timing information for retrieval and embedding operations
+- Log citation generation and evidence pack building steps
+- Use consistent log levels (INFO for operations, DEBUG for detailed tracing)
+
+## Git Workflow and Project Management
+
+### Milestone-Based Development
+- After finishing every milestone in `plan.md`, commit and push once every milestone is implemented and passes tests in `beta` branch
+- Mark `[ ]` to finished (like `[x]`) when the task is finished for every milestone subtask in `plan.md`
+- Use descriptive commit messages following the format: `feat: MX complete - description`
+- All tests must pass before committing and pushing
+
+### Branch Strategy
+- Development work happens in `beta` branch
+- Commit to `beta` after each completed milestone
+- Only merge to `main` for stable releases or major completions
+- Include detailed commit messages with milestone progress
+
+### Plan.md Maintenance
+- Keep `plan.md` up to date with current progress
+- Mark completed tasks immediately upon completion
+- Update milestone status (✅ COMPLETED) when all subtasks are done
+- Reference specific accomplishments in commit messages

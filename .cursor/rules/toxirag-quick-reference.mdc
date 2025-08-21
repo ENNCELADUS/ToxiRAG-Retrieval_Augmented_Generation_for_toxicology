@@ -1,0 +1,91 @@
+---
+description: Quick reference for common ToxiRAG patterns and conventions
+alwaysApply: true
+---
+
+# ToxiRAG Quick Reference
+
+## Common Code Patterns
+
+### Async Database Operations
+```python
+# Always use async for database operations
+async def search_documents(query: str) -> List[RetrievalResult]:
+    retriever = ToxiRAGRetriever()
+    results = await retriever.search(query)
+    return results
+
+# Mock in tests with AsyncMock
+retriever.embedder.aembedding = AsyncMock(return_value=[[0.1, 0.2, 0.3]])
+```
+
+### Citation Formatting
+```python
+# Standard citation format
+citation_text = f"[{result.citation_id} · {result.section_tag}]"
+# Example: "[E1 · 实验分组与给药]"
+
+# Evidence pack building
+evidence_text = f"{citation_text}\n{result.content}"
+if result.source_page:
+    evidence_text += f"\n来源页面: {result.source_page}"
+```
+
+### Data Normalization
+```python
+# Units conversion patterns
+def normalize_volume(value_str: str) -> NormalizedValue:
+    if "cm³" in value_str:
+        value = float(re.search(r'[\d.]+', value_str).group())
+        return NormalizedValue(value * 1000, "mm³", "cm³ → mm³")
+    elif "未说明" in value_str:
+        return NormalizedValue(None, "mm³", None)
+
+# Always preserve original + normalized
+data = {
+    "original_dose": "100 mg/kg qd",
+    "dose_mg_per_kg": 100,
+    "dose_frequency_norm": "qd",
+    "daily_equiv_mg_per_kg": 100
+}
+```
+
+### Test Data Creation
+```python
+# Use real toxicology data from 肝癌.md
+sample_results = [
+    RetrievalResult(
+        content="玉米花粉多糖可显著提高巨噬细胞活性...",
+        document_title="玉米花粉多糖的药理药效研究",
+        section_type="mechanism",
+        citation_id="E1",
+        section_tag="机制研究结果",
+        source_page="p.2–3，Table 1–9"
+    )
+]
+```
+
+## Common Mistakes to Avoid
+
+- ❌ Using `None` or empty string for missing data → ✅ Use `未说明`
+- ❌ Hardcoding units in calculations → ✅ Use normalized values with metadata
+- ❌ Missing citation source pages → ✅ Always include original page references  
+- ❌ Mock business logic in tests → ✅ Only mock external dependencies
+- ❌ Single paper test data → ✅ Use data from 3+ different papers
+
+## File Naming Conventions
+
+- `test_*.py` - Test files mirroring module structure
+- `*_schema.py` - Data structure definitions
+- `*_normalizer.py` - Data normalization utilities
+- `*.mdc` - Cursor rule files with metadata
+- `*.md` - Documentation and summaries
+
+## Logging Patterns
+
+```python
+logger.info(f"Processing document: {doc.title}")
+logger.info(f"Generated {len(chunks)} chunks")
+logger.warning(f"No results after filtering for query: {query}")
+logger.error(f"Failed to parse metadata for {row['id']}: {e}")
+```
