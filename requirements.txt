@@ -55,4 +55,5 @@ types-urllib3>=1.26.0
 
 # Development dependencies
 ruff==0.8.4
-mypy==1.14.1 tantivy==0.24.0  # Full-text search capabilities for LanceDB hybrid search
+mypy==1.14.1
+tantivy==0.24.0

@@ -103,13 +103,13 @@ Success criteria
 - Responses include bracketed citations matching evidence packs
 - Refusal behavior when evidence insufficient
 
-### M4 — Streamlit app integration
-- [ ] Connect ingestion button to `ingest_markdown_file`
-- [ ] Connect Q&A to `retrieve_relevant_docs` and `create_agentic_response`
-- [ ] Add configurable params (top_k, temperature, provider)
-- [ ] Display evidence sources with stable IDs and sections
-- [ ] Smoke test end-to-end locally
-- [ ] **Git**: Commit M4 to beta branch and push (E2E test passing)
+### M4 — Streamlit app integration ✅ COMPLETED
+- [x] Connect ingestion button to `ingest_markdown_file`
+- [x] Connect Q&A to `retrieve_relevant_docs` and `create_agentic_response`
+- [x] Add configurable params (top_k, temperature, provider)
+- [x] Display evidence sources with stable IDs and sections
+- [x] Smoke test end-to-end locally
+- [x] **Git**: Commit M4 to beta branch and push (E2E test passing)
 
 Deliverables
 - Working UI flows for ingest and Q&A

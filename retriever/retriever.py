@@ -217,11 +217,10 @@ class ToxiRAGRetriever:
         self._prepare_bm25()
         
         # Get query embedding
-        query_embedding = await self.embedder.aembedding([query])
-        query_vector = query_embedding[0]
+        query_vector = self.embedder.get_embedding(query)
         
-        # Vector search
-        vector_results = self.table.search(query_vector).limit(top_k * 3).to_pandas()  # Get more for reranking
+        # Vector search (specify embedding column name)
+        vector_results = self.table.search(query_vector, vector_column_name="embedding").limit(top_k * 3).to_pandas()  # Get more for reranking
         
         if len(vector_results) == 0:
             logger.warning("No vector search results found")
@@ -470,7 +469,7 @@ async def retrieve_relevant_docs(query: str,
     Retrieve relevant documents for a query.
     Returns a list of documents as dictionaries for compatibility with legacy interface.
     """
-    retriever = ToxiRAGRetriever()
+    retriever = ToxiRAGRetriever(table_name=collection_name)
     
     # Use the search method to get RetrievalResult objects
     results = await retriever.search(

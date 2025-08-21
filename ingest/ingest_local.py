@@ -63,8 +63,8 @@ class ToxiRAGIngester:
             try:
                 self._table = self.db.open_table(self.table_name)
                 logger.info(f"Opened existing table: {self.table_name}")
-            except FileNotFoundError:
-                logger.info(f"Creating new table: {self.table_name}")
+            except Exception as e:
+                logger.info(f"Table {self.table_name} not found, creating new table: {e}")
                 self._table = self._create_table()
         return self._table
     
@@ -74,7 +74,7 @@ class ToxiRAGIngester:
         schema = pa.schema([
             pa.field("id", pa.string()),
             pa.field("content", pa.string()),
-            pa.field("embedding", pa.list_(pa.float32(), 1536)),  # OpenAI text-embedding-3-large
+            pa.field("embedding", pa.list_(pa.float32(), 3072)),  # OpenAI text-embedding-3-large fixed size
             pa.field("document_title", pa.string()),
             pa.field("file_path", pa.string()),
             pa.field("section_name", pa.string()),
@@ -172,7 +172,11 @@ class ToxiRAGIngester:
         contents = [chunk.content for chunk in chunks]
         logger.info(f"Generating embeddings for {len(contents)} chunks...")
         
-        embeddings = await self.embedder.aembedding(contents)
+        # Generate embeddings synchronously (OpenAI embedder is not async)
+        embeddings = []
+        for content in contents:
+            embedding = self.embedder.get_embedding(content)
+            embeddings.append(embedding)
         
         for chunk, embedding in zip(chunks, embeddings):
             # Generate content hash for deduplication
@@ -220,7 +224,7 @@ class ToxiRAGIngester:
         
         try:
             # Generate query embedding
-            query_embedding = asyncio.run(self.embedder.aembedding([query]))[0]
+            query_embedding = self.embedder.get_embedding(query)
             
             # Search table
             results = self.table.search(query_embedding).limit(limit).to_pandas()

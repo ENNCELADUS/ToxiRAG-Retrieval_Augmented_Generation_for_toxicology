@@ -161,7 +161,7 @@ class TestToxiRAGRetriever:
         self.mock_table.search.return_value.limit.return_value.to_pandas.return_value = self.sample_data
         
         # Mock embedder
-        self.retriever.embedder.aembedding = AsyncMock(return_value=[[0.1, 0.2, 0.3]])
+        self.retriever.embedder.get_embedding = Mock(return_value=[0.1, 0.2, 0.3])
         
         # Mock BM25
         mock_bm25 = Mock()
@@ -185,7 +185,7 @@ class TestToxiRAGRetriever:
         filtered_data = self.sample_data[self.sample_data['section_type'] == 'mechanism']
         self.mock_table.search.return_value.limit.return_value.to_pandas.return_value = filtered_data
         
-        self.retriever.embedder.aembedding = AsyncMock(return_value=[[0.1, 0.2, 0.3]])
+        self.retriever.embedder.get_embedding = Mock(return_value=[0.1, 0.2, 0.3])
         
         mock_bm25 = Mock()
         mock_bm25.score.return_value = np.array([0.8, 0.7])  # Two mechanism results
@@ -203,7 +203,7 @@ class TestToxiRAGRetriever:
     async def test_search_scoring_weights(self):
         """Test different scoring weight combinations."""
         self.mock_table.search.return_value.limit.return_value.to_pandas.return_value = self.sample_data
-        self.retriever.embedder.aembedding = AsyncMock(return_value=[[0.1, 0.2, 0.3]])
+        self.retriever.embedder.get_embedding = Mock(return_value=[0.1, 0.2, 0.3])
         
         mock_bm25 = Mock()
         mock_bm25.score.return_value = np.array([0.1, 0.9, 0.5, 0.4, 0.3, 0.2])  # BM25 favors second result

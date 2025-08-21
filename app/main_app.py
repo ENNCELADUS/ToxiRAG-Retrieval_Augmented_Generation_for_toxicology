@@ -12,7 +12,7 @@ from typing import Optional, List, Dict, Any
 
 # Local imports (will be created)
 try:
-    from ingest.ingest_local import ingest_markdown_file, setup_qdrant_collection
+    from ingest.ingest_local import ingest_markdown_file
     from retriever.retriever import retrieve_relevant_docs
     from llm.agentic_pipeline import create_agentic_response
 except ImportError:
@@ -116,11 +116,11 @@ def ingest_section(config: Dict[str, Any]):
             if st.button("🚀 开始摄取", key="ingest_button"):
                 try:
                     with st.spinner("正在处理文件..."):
-                        # Call ingestion function
-                        result = ingest_markdown_file(
+                        # Call ingestion function (async)
+                        result = asyncio.run(ingest_markdown_file(
                             file_path=tmp_file_path,
                             collection_name="tcm_tox"
-                        )
+                        ))
                         st.success(f"✅ 文件摄取成功！处理了 {result.get('chunks', 0)} 个文档块")
                 except Exception as e:
                     st.error(f"❌ 摄取失败: {str(e)}")
