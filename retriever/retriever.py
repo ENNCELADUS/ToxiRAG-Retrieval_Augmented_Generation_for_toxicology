@@ -459,6 +459,52 @@ async def search_documents(query: str,
     return evidence_pack
 
 
+async def retrieve_relevant_docs(query: str,
+                                top_k: int = 5,
+                                collection_name: str = "tcm_tox",
+                                section_types: Optional[List[str]] = None,
+                                document_titles: Optional[List[str]] = None,
+                                vector_weight: float = 0.7,
+                                bm25_weight: float = 0.3) -> List[Dict[str, Any]]:
+    """
+    Retrieve relevant documents for a query.
+    Returns a list of documents as dictionaries for compatibility with legacy interface.
+    """
+    retriever = ToxiRAGRetriever()
+    
+    # Use the search method to get RetrievalResult objects
+    results = await retriever.search(
+        query=query,
+        top_k=top_k,
+        vector_weight=vector_weight,
+        bm25_weight=bm25_weight,
+        section_types=section_types,
+        document_titles=document_titles
+    )
+    
+    # Convert RetrievalResult objects to dictionaries for compatibility
+    docs = []
+    for result in results:
+        doc = {
+            "content": result.content,
+            "document_title": result.document_title,
+            "section_type": result.section_type,
+            "section_name": result.section_name,
+            "source_page": result.source_page,
+            "citation_id": result.citation_id,
+            "section_tag": result.section_tag,
+            "file_path": result.file_path,
+            "vector_score": result.vector_score,
+            "bm25_score": result.bm25_score,
+            "combined_score": result.combined_score,
+            "rank": result.rank,
+            "metadata": result.metadata
+        }
+        docs.append(doc)
+    
+    return docs
+
+
 def get_available_filters() -> Dict[str, List[str]]:
     """Get available filter options."""
     retriever = ToxiRAGRetriever()

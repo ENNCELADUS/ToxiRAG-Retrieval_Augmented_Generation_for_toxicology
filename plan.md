@@ -89,11 +89,11 @@ Success criteria
 - Evidence packs render bracketed citations with section tags
 - Handles pilot scale (500–1,000 docs) for ingest and retrieval within reasonable latency
 
-### M3 — Agentic orchestration with agno
-- [ ] Implement `llm/agentic_pipeline.py` to: (a) decompose queries into sub-queries, (b) call retriever, (c) format evidence packs, (d) draft answers with reasoning tools
-- [ ] Add guardrails: answer only from evidence; cite sources; refuse if insufficient evidence
-- [ ] Unit tests with mocked LLM calls validating prompts and outputs
-- [ ] **Git**: Commit M3 to beta branch and push (tests passing)
+### M3 — Agentic orchestration with agno ✅ COMPLETED
+- [x] Implement `llm/agentic_pipeline.py` to: (a) decompose queries into sub-queries, (b) call retriever, (c) format evidence packs, (d) draft answers with reasoning tools
+- [x] Add guardrails: answer only from evidence; cite sources; refuse if insufficient evidence
+- [x] Unit tests with mocked LLM calls validating prompts and outputs
+- [x] **Git**: Commit M3 to beta branch and push (tests passing)
 
 Deliverables
 - `llm/agentic_pipeline.py` with prompt templates and guardrails

@@ -6,18 +6,9 @@ Main interface for liver cancer toxicity prediction and experiment planning.
 import os
 import streamlit as st
 import tempfile
+import asyncio
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-
-# Agno imports for reasoning tools
-from agno.agent import Agent
-from agno.models.openai import OpenAIChat
-from agno.models.google import Gemini
-from agno.tools.reasoning import ReasoningTools
-from agno.tools.knowledge import KnowledgeTools
-from agno.embedder.openai import OpenAIEmbedder
-from agno.knowledge.text import TextKnowledgeBase
-from agno.vectordb.lancedb import LanceDb, SearchType
 
 # Local imports (will be created)
 try:
@@ -87,70 +78,18 @@ def setup_sidebar() -> Dict[str, Any]:
         "top_k_docs": top_k_docs
     }
 
-def setup_agent(config: Dict[str, Any], agent_type: str = "reasoning") -> Optional[Agent]:
-    """Setup Agno agent with reasoning tools."""
+async def run_async_agentic_response(query: str, config: Dict[str, Any], collection_name: str = "tcm_tox", use_reasoning_tools: bool = True):
+    """Wrapper to run async agentic response in Streamlit."""
     try:
-        # Set environment variables
-        if config["openai_api_key"]:
-            os.environ["OPENAI_API_KEY"] = config["openai_api_key"]
-        if config["google_api_key"]:
-            os.environ["GOOGLE_API_KEY"] = config["google_api_key"]
-        
-        # Select model based on provider
-        if config["llm_provider"] == "openai":
-            model = OpenAIChat(
-                id="gpt-5-nano", 
-                api_key=config["openai_api_key"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"]
-            )
-        else:  # gemini
-            model = Gemini(
-                id="gemini-2.5-flash",
-                api_key=config["google_api_key"],
-                max_tokens=config["max_tokens"],
-                temperature=config["temperature"]
-            )
-        
-        # Setup tools based on agent type
-        if agent_type == "reasoning":
-            tools = [ReasoningTools(add_instructions=True)]
-        elif agent_type == "knowledge":
-            # Setup knowledge base for toxicology data
-            knowledge = TextKnowledgeBase(
-                vector_db=LanceDb(
-                    uri="tmp/toxirag_lancedb",
-                    table_name="toxicology_docs",
-                    search_type=SearchType.hybrid,
-                    embedder=OpenAIEmbedder(
-                        id="text-embedding-3-large",
-                        api_key=config["openai_api_key"]
-                    )
-                )
-            )
-            tools = [KnowledgeTools(
-                knowledge=knowledge,
-                think=True,
-                search=True,
-                analyze=True,
-                add_few_shot=True
-            )]
-        else:
-            tools = []
-        
-        agent = Agent(
-            model=model,
-            tools=tools,
-            instructions="""You are a toxicology expert specializing in liver cancer research and Traditional Chinese Medicine (TCM) compounds. 
-            Provide detailed, evidence-based responses about toxicity predictions and experimental planning.
-            Always cite your sources and explain your reasoning step by step.""",
-            show_tool_calls=True,
-            markdown=True
+        response = await create_agentic_response(
+            query=query,
+            config=config,
+            collection_name=collection_name,
+            use_reasoning_tools=use_reasoning_tools
         )
-        
-        return agent
+        return response
     except Exception as e:
-        st.error(f"设置代理时出错: {str(e)}")
+        st.error(f"生成回答时出错: {str(e)}")
         return None
 
 def ingest_section(config: Dict[str, Any]):
@@ -195,12 +134,11 @@ def ingest_section(config: Dict[str, Any]):
             st.text_area("文件预览", content[:500] + "..." if len(content) > 500 else content, height=100)
 
 def gpt5_reasoning_tab(config: Dict[str, Any]):
-    """GPT-5 retrieval and reasoning tab."""
+    """GPT-5 retrieval and reasoning tab using new agentic pipeline."""
     st.header("🤖 检索与回答（GPT-5）")
     
-    # Setup reasoning agent
-    agent = setup_agent(config, "reasoning")
-    if not agent:
+    # Check API keys
+    if not config["openai_api_key"] and not config["google_api_key"]:
         st.error("无法设置推理代理。请检查API密钥配置。")
         return
     
@@ -221,43 +159,48 @@ def gpt5_reasoning_tab(config: Dict[str, Any]):
             
             with st.spinner("正在检索相关文档并分析..."):
                 try:
-                    # Step 1: Retrieve relevant documents
-                    retrieved_docs = retrieve_relevant_docs(
+                    # Use new agentic pipeline
+                    response = asyncio.run(run_async_agentic_response(
                         query=query,
-                        top_k=config["top_k_docs"],
-                        collection_name="tcm_tox"
-                    )
+                        config=config,
+                        collection_name="tcm_tox",
+                        use_reasoning_tools=False  # Basic reasoning for this tab
+                    ))
                     
-                    # Step 2: Create context-aware query
-                    context = "\n\n".join([doc.get('content', '') for doc in retrieved_docs])
-                    enhanced_query = f"""
-                    基于以下检索到的毒理学文献上下文，请回答用户的问题:
+                    if response and response.refusal_reason is None:
+                        # Display results
+                        st.subheader("📊 分析结果")
+                        st.markdown(response.response_text)
+                        
+                        # Display evidence pack info
+                        if response.evidence_pack.citation_ids:
+                            st.subheader("📋 证据引用")
+                            for citation in response.citations:
+                                st.markdown(f"- {citation}")
+                        
+                        # Display retrieved sources
+                        with st.expander("📚 参考文献来源"):
+                            for i, doc in enumerate(response.evidence_pack.retrieved_docs, 1):
+                                st.write(f"**来源 {i}:** {doc.get('document_title', '未知标题')}")
+                                st.write(f"**节段:** {doc.get('section_type', '未知节段')}")
+                                st.write(f"**摘要:** {doc.get('content', '')[:200]}...")
+                                if doc.get('source_page'):
+                                    st.write(f"**页面:** {doc.get('source_page')}")
+                                st.write("---")
+                        
+                        # Display confidence and reasoning info
+                        st.subheader("🔍 分析信息")
+                        st.write(f"**置信度:** {response.confidence_score:.2f}")
+                        st.write(f"**检索到的文档数:** {len(response.evidence_pack.retrieved_docs)}")
+                        st.write(f"**引用数:** {len(response.citations)}")
                     
-                    上下文文档:
-                    {context}
+                    elif response and response.refusal_reason:
+                        st.warning("⚠️ 分析受限")
+                        st.markdown(response.response_text)
+                        st.write(f"**原因:** {response.refusal_reason}")
                     
-                    用户问题: {query}
-                    
-                    请提供详细的分析，包括:
-                    1. 相关的毒理学机制
-                    2. 实验设计建议
-                    3. 安全性考虑
-                    4. 引用的证据来源
-                    """
-                    
-                    # Step 3: Generate reasoning response
-                    response = agent.run(enhanced_query)
-                    
-                    # Display results
-                    st.subheader("📊 分析结果")
-                    st.markdown(response.content)
-                    
-                    # Display retrieved sources
-                    with st.expander("📚 参考文献来源"):
-                        for i, doc in enumerate(retrieved_docs, 1):
-                            st.write(f"**来源 {i}:** {doc.get('title', '未知标题')}")
-                            st.write(f"**摘要:** {doc.get('content', '')[:200]}...")
-                            st.write("---")
+                    else:
+                        st.error("分析失败，请重试")
                 
                 except Exception as e:
                     st.error(f"分析过程中出现错误: {str(e)}")
@@ -267,12 +210,11 @@ def gpt5_reasoning_tab(config: Dict[str, Any]):
         st.info(f"🔧 当前配置: {config['llm_provider'].upper()} | 检索文档数: {config['top_k_docs']} | 温度: {config['temperature']}")
 
 def reasoning_visualization_tab(config: Dict[str, Any]):
-    """Reasoning visualization tab with OpenAI embeddings."""
-    st.header("🧠 推理可视化（OpenAI 嵌入）")
+    """Reasoning visualization tab with advanced agentic pipeline."""
+    st.header("🧠 推理可视化（高级分析）")
     
-    # Setup knowledge agent
-    agent = setup_agent(config, "knowledge")
-    if not agent:
+    # Check API keys
+    if not config["openai_api_key"] and not config["google_api_key"]:
         st.error("无法设置知识代理。请检查API密钥配置。")
         return
     
@@ -294,70 +236,104 @@ def reasoning_visualization_tab(config: Dict[str, Any]):
             
             with st.spinner("正在进行深度推理分析..."):
                 try:
-                    # Enhanced query for reasoning visualization
-                    enhanced_query = f"""
-                    作为毒理学专家，请对以下问题进行深度分析:
+                    # Use advanced agentic pipeline with reasoning tools
+                    response = asyncio.run(run_async_agentic_response(
+                        query=query,
+                        config=config,
+                        collection_name="tcm_tox",
+                        use_reasoning_tools=True  # Advanced reasoning for this tab
+                    ))
                     
-                    {query}
-                    
-                    请按照以下步骤进行分析:
-                    1. 首先思考问题的关键要素
-                    2. 搜索相关的毒理学知识
-                    3. 分析不同化合物的作用机制
-                    4. 比较安全性和有效性
-                    5. 提供具体的实验设计建议
-                    6. 总结关键发现和建议
-                    """
-                    
-                    # Generate response with reasoning tools
-                    if show_reasoning:
-                        # Show intermediate reasoning steps
-                        st.subheader("🔍 推理过程")
-                        reasoning_container = st.container()
+                    if response and response.refusal_reason is None:
+                        # Show reasoning steps if requested
+                        if show_reasoning and response.reasoning_steps:
+                            st.subheader("🔍 推理过程")
+                            reasoning_container = st.container()
+                            
+                            with reasoning_container:
+                                st.markdown("**推理步骤:**")
+                                for i, step in enumerate(response.reasoning_steps, 1):
+                                    st.markdown(f"{i}. {step}")
                         
-                        response = agent.run(
-                            enhanced_query,
-                            stream=True,
-                            show_full_reasoning=True
-                        )
+                        # Display main results
+                        st.subheader("📋 分析报告")
+                        st.markdown(response.response_text)
                         
-                        with reasoning_container:
-                            st.markdown("**推理步骤:**")
-                            # Note: Actual reasoning visualization would need custom streaming handler
-                            st.info("推理工具正在分析问题...")
+                        # Display evidence and citations
+                        if response.evidence_pack.citation_ids:
+                            st.subheader("📋 证据引用")
+                            for citation in response.citations:
+                                st.markdown(f"- {citation}")
+                        
+                        # Advanced analysis metrics
+                        st.subheader("🔬 分析详情")
+                        col_a, col_b, col_c = st.columns(3)
+                        
+                        with col_a:
+                            st.metric("置信度", f"{response.confidence_score:.2f}")
+                        
+                        with col_b:
+                            st.metric("证据文档", len(response.evidence_pack.retrieved_docs))
+                        
+                        with col_c:
+                            st.metric("引用数量", len(response.citations))
+                        
+                        # Query decomposition info
+                        st.subheader("🧩 查询分解")
+                        st.write("**查询类型分类**: 自动识别并分解为多个子查询")
+                        st.write("**证据检索**: 去重后的相关文档")
+                        st.write("**推理合成**: 基于证据的结构化分析")
+                        
+                        # Display retrieved sources with advanced info
+                        with st.expander("📚 详细文献来源"):
+                            for i, doc in enumerate(response.evidence_pack.retrieved_docs, 1):
+                                st.write(f"**文档 {i}:** {doc.get('document_title', '未知标题')}")
+                                st.write(f"**节段类型:** {doc.get('section_type', '未知节段')}")
+                                if doc.get('vector_score'):
+                                    st.write(f"**相似度得分:** {doc.get('vector_score', 0):.3f}")
+                                if doc.get('bm25_score'):
+                                    st.write(f"**关键词得分:** {doc.get('bm25_score', 0):.3f}")
+                                if doc.get('combined_score'):
+                                    st.write(f"**综合得分:** {doc.get('combined_score', 0):.3f}")
+                                st.write(f"**内容摘要:** {doc.get('content', '')[:200]}...")
+                                if doc.get('source_page'):
+                                    st.write(f"**源页面:** {doc.get('source_page')}")
+                                st.write("---")
+                    
+                    elif response and response.refusal_reason:
+                        st.warning("⚠️ 深度分析受限")
+                        st.markdown(response.response_text)
+                        st.write(f"**限制原因:** {response.refusal_reason}")
+                    
                     else:
-                        response = agent.run(enhanced_query)
-                    
-                    # Display final results
-                    st.subheader("📋 分析报告")
-                    st.markdown(response.content)
-                    
-                    # Additional insights
-                    st.subheader("💡 关键洞察")
-                    insights_query = f"基于上述分析，请总结3个最重要的毒理学洞察和实验建议: {query}"
-                    insights_response = agent.run(insights_query)
-                    st.markdown(insights_response.content)
+                        st.error("深度分析失败，请重试")
                 
                 except Exception as e:
                     st.error(f"推理分析过程中出现错误: {str(e)}")
     
     with col1:
-        # Reasoning parameters
-        st.info(f"🔧 推理配置: 知识搜索 + 分析工具 | 嵌入模型: text-embedding-3-large")
+        # Advanced reasoning parameters
+        st.info(f"🔧 高级配置: {config['llm_provider'].upper()} + 知识推理工具 | 嵌入: text-embedding-3-large")
         
         # Show reasoning tools info
-        with st.expander("ℹ️ 推理工具说明"):
+        with st.expander("ℹ️ 高级推理功能"):
             st.markdown("""
-            **推理工具功能:**
-            - 🤔 **Think**: 结构化思考空间
-            - 🔍 **Search**: 知识库搜索
-            - 📊 **Analyze**: 结果分析工具
+            **智能查询分解:**
+            - 🧠 **自动分类**: 机制/毒性/设计/对比/一般
+            - 🔍 **多角度检索**: 子查询并行搜索
+            - 📊 **证据聚合**: 去重和相关性排序
             
-            **适用场景:**
-            - 复杂的多步骤分析
-            - 需要对比多个化合物
+            **推理增强功能:**
+            - 🤔 **结构化思考**: 分步分析问题
+            - 🔍 **知识库搜索**: 混合检索策略
+            - 📊 **证据评估**: 置信度计算
+            - 🛡️ **安全防护**: 拒绝回答不充分问题
+            
+            **适用复杂场景:**
+            - 多化合物对比分析
             - 实验设计方案制定
-            - 安全性评估
+            - 机制研究综合评估
+            - 安全性风险分析
             """)
 
 def main():

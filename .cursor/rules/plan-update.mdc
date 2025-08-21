@@ -1,4 +1,0 @@
----
-description: Mark `[ ]` to finished(like [x]) when the task is finished for every milestone subtasks.
-alwaysApply: false
----

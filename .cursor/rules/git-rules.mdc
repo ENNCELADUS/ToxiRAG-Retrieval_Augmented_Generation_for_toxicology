@@ -1,4 +1,0 @@
----
-description: After finish every milestones in `plan.md`, commit and push once every milestone is implemented and pass test in `beta` branch by git.
-alwaysApply: false
----
