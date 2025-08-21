@@ -1,0 +1,126 @@
+dataset: toxirag_liver_cancer_m5_v1
+version: 1.0.0
+source: data/summaries/肝癌.md
+schema_version: 0.1
+notes: >-
+  Golden questions derived from actual sections and tables in 肝癌.md.
+  Expected citations are specified by document_title + section_tag and include
+  source pages to preserve traceability. E-numbers are not fixed in gold; match
+  by section_tag/document_title.
+
+questions:
+  - id: GQ-001
+    question: 玉米花粉多糖通过哪些免疫学机制发挥抗肝癌作用？
+    query_type: mechanism
+    expected_citations:
+      - document_title: 玉米花粉多糖的药理药效研究
+        section_tag: 机制研究结果
+        source_page: p.2–3，Table 1–9
+        must_include_phrases: [巨噬细胞, IL-6, TNF-α, NK细胞, T4, T8]
+      - document_title: 玉米花粉多糖的药理药效研究
+        section_tag: 数据记录表格 - 机制检测数据表
+        source_page: p.2–3，Table 1–4
+        must_include_phrases: [吞噬指数, 乳酸脱氢酶, 酸性磷酸酶, IL-6, TNF-α]
+    min_citations_required: 1
+
+  - id: GQ-002
+    question: 玉米花粉多糖研究的给药剂量、频率与周期是什么？
+    query_type: design
+    expected_citations:
+      - document_title: 玉米花粉多糖的药理药效研究
+        section_tag: 实验分组与给药
+        source_page: p.2–4 / 各表格
+        must_include_phrases: ["50–200 mg/kg", 每日1次, 连续8–12天, iv, ip]
+    min_citations_required: 1
+
+  - id: GQ-003
+    question: 玛咖生物碱对Bel-7402肝癌细胞的最高体外抑制率是多少？
+    query_type: mechanism
+    expected_citations:
+      - document_title: 玛咖生物碱对人肝癌细胞Bel-7402和H22荷瘤小鼠的抑制作用
+        section_tag: 机制研究结果
+        source_page: p.54–56，2.1.1，2.4，3.3
+        must_include_phrases: ["81.49%", Bel-7402, 剂量依赖性]
+    min_citations_required: 1
+
+  - id: GQ-004
+    question: 玛咖生物碱的抗肝癌作用是否与免疫调节相关？
+    query_type: mechanism
+    expected_citations:
+      - document_title: 玛咖生物碱对人肝癌细胞Bel-7402和H22荷瘤小鼠的抑制作用
+        section_tag: 机制研究结果
+        source_page: p.54–56，2.1.1，2.4，3.3
+        must_include_phrases: [免疫器官指数, 无显著相关, 免疫调节无关]
+    min_citations_required: 1
+
+  - id: GQ-005
+    question: 玛咖生物碱H22小鼠移植瘤模型的关键参数（模型类型、给药开始时间与周期）是什么？
+    query_type: tumor_model
+    expected_citations:
+      - document_title: 玛咖生物碱对人肝癌细胞Bel-7402和H22荷瘤小鼠的抑制作用
+        section_tag: 肿瘤模型信息
+        source_page: p.53–54，1.3.3.1–1.3.3.4
+        must_include_phrases: [移植瘤模型, H22, 腋下, Day 3, 18天]
+    min_citations_required: 1
+
+  - id: GQ-006
+    question: 理冲汤联合5-FU研究的实验分组、给药方式、剂量与给药周期是什么？
+    query_type: experiment_groups
+    expected_citations:
+      - document_title: Effect of Modified Lichongtang Combined with 5-Fluorouracil on Epithelial Mesenchymal Transition in H22 Tumor-bearing Mice
+        section_tag: 实验分组与给药
+        source_page: p.1–2, p.4
+        must_include_phrases: ["n=10", "5-FU", 腹腔注射, "2.5 mg", 隔日1次, 理冲汤, 灌胃, "25 g", 每日1次, "14 天"]
+    min_citations_required: 1
+
+  - id: GQ-007
+    question: 联合用药（5-FU+中药组）对EMT相关分子（E-cadherin、N-cadherin、Snail、Twist）的影响是什么？
+    query_type: mechanism
+    expected_citations:
+      - document_title: Effect of Modified Lichongtang Combined with 5-Fluorouracil on Epithelial Mesenchymal Transition in H22 Tumor-bearing Mice
+        section_tag: 数据记录表格 - EMT分子标记物
+        source_page: p.6, Table 5, Table 6
+        must_include_phrases: [E-cadherin, N-cadherin, Snail, Twist, Real-time PCR, Western blot]
+    min_citations_required: 1
+
+  - id: GQ-008
+    question: 理冲汤联合5-FU研究中各实验组的样本量（n）是如何设置的？
+    query_type: design
+    expected_citations:
+      - document_title: Effect of Modified Lichongtang Combined with 5-Fluorouracil on Epithelial Mesenchymal Transition in H22 Tumor-bearing Mice
+        section_tag: 实验分组与给药
+        source_page: p.1–2
+        must_include_phrases: [空白组, 5-FU组, 5-FU+中药组, 中药组, "n=10"]
+    min_citations_required: 1
+
+  - id: GQ-009
+    question: 玉米花粉多糖研究中使用了哪些阳性对照药物？
+    query_type: design
+    expected_citations:
+      - document_title: 玉米花粉多糖的药理药效研究
+        section_tag: 实验分组与给药
+        source_page: p.2–4 / 各表格
+        must_include_phrases: [CTX, 香菇多糖, 天地欣, 5-FU]
+    min_citations_required: 1
+
+  - id: GQ-010
+    question: 理冲汤联合5-FU研究中各组的平均肿瘤体积和抑瘤率如何？
+    query_type: data_table
+    expected_citations:
+      - document_title: Effect of Modified Lichongtang Combined with 5-Fluorouracil on Epithelial Mesenchymal Transition in H22 Tumor-bearing Mice
+        section_tag: 数据记录表格 - 肿瘤体积与抑瘤率
+        source_page: p.3–4, Table 1–2
+        must_include_phrases: [肿瘤体积, 抑瘤率, 5-FU组, 5-FU+中药组, 空白组, 中药组]
+    min_citations_required: 1
+
+  - id: GQ-011
+    question: 玛咖生物碱H22荷瘤小鼠各剂量组的抑瘤率数据是多少？
+    query_type: data_table
+    expected_citations:
+      - document_title: 玛咖生物碱对人肝癌细胞Bel-7402和H22荷瘤小鼠的抑制作用
+        section_tag: 数据记录表格 - 抑瘤率
+        source_page: p.55，Table 2
+        must_include_phrases: [顺铂组, 高剂量组, 中剂量组, 低剂量组, 抑瘤率]
+    min_citations_required: 1
+
+

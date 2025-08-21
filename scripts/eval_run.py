@@ -16,7 +16,7 @@ from config.settings import settings
 from utils.logging_setup import setup_logging
 
 
-def main():
+async def main():
     """Main CLI entry point for evaluation."""
     parser = argparse.ArgumentParser(
         description="Run ToxiRAG evaluation against golden questions"
@@ -80,19 +80,27 @@ def main():
     logger.info(f"Output directory: {args.output_dir}")
     
     try:
-        # TODO: Import and call actual evaluation logic once implemented
-        # from eval.evaluator import run_evaluation
-        # 
-        # result = run_evaluation(
-        #     eval_config=args.eval_config,
-        #     collection_name=args.collection,
-        #     llm_provider=args.llm_provider,
-        #     output_dir=args.output_dir
-        # )
-        # 
-        # logger.info(f"Evaluation completed: {result}")
+        # Import and run evaluation
+        from eval.evaluator import run_evaluation
         
-        logger.warning("Evaluation logic not yet implemented - this is a placeholder")
+        result = await run_evaluation(
+            eval_config=args.eval_config,
+            collection_name=args.collection,
+            llm_provider=args.llm_provider,
+            output_dir=args.output_dir
+        )
+        
+        logger.info(f"Evaluation completed:")
+        logger.info(f"  Questions: {result.passed_questions}/{result.total_questions} passed")
+        logger.info(f"  Pass rate: {result.overall_pass_rate:.1%}")
+        logger.info(f"  Average grounding score: {result.average_grounding_score:.3f}")
+        logger.info(f"  Average citation coverage: {result.average_citation_coverage:.3f}")
+        logger.info(f"  Results saved to: {args.output_dir}")
+        
+        # Return appropriate exit code
+        if result.overall_pass_rate < 0.7:  # Less than 70% pass rate
+            logger.warning(f"Pass rate {result.overall_pass_rate:.1%} below recommended 70%")
+            sys.exit(1)
         
     except Exception as e:
         logger.error(f"Evaluation failed: {e}")
@@ -102,4 +110,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    import asyncio
+    asyncio.run(main())

@@ -120,11 +120,11 @@ Success criteria
 - UI reflects normalization (units, `未说明`) where displayed
 
 ### M5 — Evaluation and E2E test
-- [ ] Add `eval/` golden questions + expected citations
-- [ ] Implement RAGAS or custom checks for grounding and citation coverage
-- [ ] Add `tests/e2e/test_rag_flow.py` covering ingest→retrieve→answer→citations
-- [ ] Add coverage target (e.g., ≥70%) and CI-ready test command
-- [ ] **Git**: Commit M5 to beta branch and push (all tests passing)
+- [x] Add `eval/` golden questions + expected citations
+- [x] Implement RAGAS or custom checks for grounding and citation coverage
+- [x] Add `tests/e2e/test_rag_flow.py` covering ingest→retrieve→answer→citations
+- [x] Add coverage target (e.g., ≥70%) and CI-ready test command
+- [x] **Git**: Commit M5 to beta branch and push (all tests passing)
 
 Deliverables
 - `eval/` configs and gold answers
@@ -167,8 +167,18 @@ streamlit run app/main_app.py
 
 ## Test and eval
 ```bash
+# Run all tests with coverage (CI-ready)
 conda activate toxirag
-pytest -q --maxfail=1 --disable-warnings
+pytest --maxfail=1
+
+# Run tests without slow/integration tests (fast CI)
+pytest --maxfail=1 -m "not slow and not integration"
+
+# Run evaluation against golden questions
+python scripts/eval_run.py --eval-config eval/config.yaml --verbose
+
+# Check coverage report
+pytest --cov-report=term --cov-fail-under=70
 ```
 
 ## Notes

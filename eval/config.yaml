@@ -1,0 +1,21 @@
+name: toxirag_eval_m5
+version: 1.0.0
+
+collection_name: toxicology_docs
+golden_questions_file: eval/golden_questions.yaml
+
+retrieval:
+  top_k: 5
+  vector_weight: 0.7
+  bm25_weight: 0.3
+
+scoring:
+  # Placeholder for RAGAS or custom metrics in later M5 steps
+  grounding_required: true
+  min_citations_per_answer: 1
+  match_by: section_tag_document_title
+
+notes: >-
+  Uses real sections and pages from data/summaries/肝癌.md. Expected citations
+  compare by document title + section tag and check presence of key phrases.
+
