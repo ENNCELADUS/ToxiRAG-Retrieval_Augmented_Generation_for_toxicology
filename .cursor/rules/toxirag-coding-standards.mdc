@@ -44,9 +44,29 @@ alwaysApply: true
 
 ## Python Environment
 
-- When installing packages and running python, always activate the conda env by using `conda activate toxirag`
-- Ensure all development work happens within the toxirag conda environment
-- Include environment activation in scripts and documentation examples
+### When Conda Activation IS Required
+- **Python execution**: `python script.py`, `python -m module`, `python -c "code"`
+- **Package installation**: `pip install package_name`
+- **Testing**: `pytest`, `python -m pytest`
+- **Interactive Python**: `python`, `ipython`, `jupyter`
+- **Python-based tools**: `streamlit run`, `uvicorn`, etc.
+
+### When Conda Activation is NOT Needed
+- **Git operations**: `git add`, `git commit`, `git push` (pure shell commands)
+- **File operations**: `ls`, `cat`, `cp`, `mv`, `rm` (filesystem commands)
+- **Text editing**: Editor operations, file reading/writing
+- **Directory navigation**: `cd`, `pwd`, `mkdir`
+- **System commands**: `echo`, `curl`, `wget`, `grep`
+
+### Usage Pattern
+```bash
+# ❌ Unnecessary - git doesn't need conda
+conda activate toxirag && git add .
+
+# ✅ Correct - only activate when needed for Python
+git add .
+conda activate toxirag && python -m pytest
+```
 
 ## Dependency Management
 
@@ -59,12 +79,11 @@ alwaysApply: true
 ### Requirements.txt Maintenance
 ```bash
 # After installing new package:
-conda activate toxirag
-pip install new-package==1.2.3
+conda activate toxirag && pip install new-package==1.2.3
 echo "new-package==1.2.3  # Purpose: description" >> requirements.txt
 
 # Or update existing:
-pip freeze | grep new-package >> requirements.txt
+conda activate toxirag && pip freeze | grep new-package >> requirements.txt
 ```
 
 ### Version Control
