@@ -130,11 +130,15 @@ dmypy.json
 
 # IDE specific files
 .vscode/
-.cursor/
 .idea/
 *.swp
 *.swo
 *~
+
+# Cursor IDE - track rules and cursorrules but ignore cache
+.cursor/cache/
+.cursor/logs/
+# Note: .cursor/rules/ and .cursorrules are tracked for project collaboration
 
 # macOS
 .DS_Store
@@ -163,4 +167,6 @@ qdrant_storage/
 # API keys and secrets
 .env.local
 .env.production
-secrets.json 
+secrets.json
+
+# Keep .env.example tracked but ignore actual .env files 
