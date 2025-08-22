@@ -6,14 +6,36 @@ Evidence-grounded RAG system for toxicology research (Chinese/English) with stri
 Getting Started (Quickstart)
 ----------------------------
 
+### 1. Create and activate conda environment
 ```bash
+# Create new conda environment with Python 3.11
+conda create -n toxirag python=3.11 -y
 conda activate toxirag
-cp .env.example .env  # add OPENAI_API_KEY / GOOGLE_API_KEY
+```
+
+### 2. Install dependencies
+```bash
+# Install all required packages from requirements.txt
+pip install -r requirements.txt
+```
+
+### 3. Configure API keys
+```bash
+# Copy environment template and add your API keys
+cp .env.example .env
+# Edit .env file and add your OPENAI_API_KEY and/or GOOGLE_API_KEY
+```
+
+### 4. Run the application
+```bash
+# Start the Streamlit UI
 streamlit run app/main_app.py
 ```
 
-- Ingest sample docs: use the UI or CLI below.
-- Ask questions in Chinese or English; answers will include citations.
+### 5. Get started
+- **Ingest sample docs**: Use the UI upload button or CLI commands below
+- **Ask questions**: Type in Chinese or English; answers will include citations like [E1 · 实验分组与给药]
+- **Try the sample**: Use `data/samples/mini_sample.md` for testing
 
 Project Structure
 -----------------
