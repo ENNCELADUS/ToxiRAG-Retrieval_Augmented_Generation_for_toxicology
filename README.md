@@ -1,10 +1,8 @@
-ToxiRAG — Retrieval Augmented Generation for Toxicology
-======================================================
+# ToxiRAG — Retrieval Augmented Generation for Toxicology
 
-Evidence-grounded RAG system for toxicology research (Chinese/English) with strict normalization, hybrid retrieval over LanceDB, and agentic reasoning. Answers always include bracketed citations like [E1 · 实验分组与给药].
+Evidence-grounded RAG system for toxicology research (Chinese/English) with strict normalization, hybrid retrieval over LanceDB, and agentic reasoning. Answers always include bracketed citations like `[E1 · 实验分组与给药]`.
 
-Getting Started (Quickstart)
-----------------------------
+## 🚀 Getting Started (Quickstart)
 
 ### 1. Create and activate conda environment
 ```bash
@@ -34,11 +32,10 @@ streamlit run app/main_app.py
 
 ### 5. Get started
 - **Ingest sample docs**: Use the UI upload button or CLI commands below
-- **Ask questions**: Type in Chinese or English; answers will include citations like [E1 · 实验分组与给药]
+- **Ask questions**: Type in Chinese or English; answers will include citations like `[E1 · 实验分组与给药]`
 - **Try the sample**: Use `data/samples/mini_sample.md` for testing
 
-Project Structure
------------------
+## 📁 Project Structure
 
 - `ingest/`: Markdown parsing, normalization, chunking
 - `retriever/`: Hybrid search (vector + BM25), evidence packs
@@ -47,8 +44,7 @@ Project Structure
 - `data/`: `summaries/` (real papers), `samples/` (toy example)
 - `tests/`: Unit + e2e tests (bilingual, realistic data)
 
-Data Format (Strict Template)
------------------------------
+## 📋 Data Format (Strict Template)
 
 Documents must follow the strict toxicology template used by the parser. Key rules:
 
@@ -59,10 +55,9 @@ Documents must follow the strict toxicology template used by the parser. Key rul
 
 See `data/samples/mini_sample.md` for a minimal, valid example.
 
-CLI Usage
----------
+## ⚡ CLI Usage
 
-Ingest Markdown (.md) into LanceDB
+### Ingest Markdown (.md) into LanceDB
 
 ```bash
 conda activate toxirag
@@ -75,64 +70,60 @@ python scripts/ingest_md.py data/summaries/ --verbose
 python scripts/ingest_md.py data/samples/mini_sample.md --dry-run --verbose
 ```
 
-Evaluate against golden questions (M5)
+### Evaluate against golden questions
 
 ```bash
 conda activate toxirag
 python scripts/eval_run.py --eval-config eval/config.yaml --verbose
 ```
 
-Reindex embeddings (placeholder)
+### Reindex embeddings
 
 ```bash
 conda activate toxirag
 python scripts/reindex.py --verbose
 ```
 
-Troubleshooting
----------------
+## 🔧 Troubleshooting
 
-- Missing API keys
-  - Ensure `.env` has `OPENAI_API_KEY` and/or `GOOGLE_API_KEY`
-  - Streamlit/eval/ingest will fail if keys are missing (except `--dry-run`)
+### Missing API keys
+- Ensure `.env` has `OPENAI_API_KEY` and/or `GOOGLE_API_KEY`
+- Streamlit/eval/ingest will fail if keys are missing (except `--dry-run`)
 
-- LanceDB path
-  - Defaults via `LANCEDB_URI` in `.env` or project defaults in `config/settings.py`
-  - If you see “table not found”, ingest first or point to the correct table
+### LanceDB path issues
+- Defaults via `LANCEDB_URI` in `.env` or project defaults in `config/settings.py`
+- If you see "table not found", ingest first or point to the correct table
 
-- Parsing errors
-  - Ensure headings match the template (e.g., `## 实验分组与给药`, `## 机制研究结果`)
-  - Use `未说明` for missing fields; keep bilingual text as-is
+### Parsing errors
+- Ensure headings match the template (e.g., `## 实验分组与给药`, `## 机制研究结果`)
+- Use `未说明` for missing fields; keep bilingual text as-is
 
-- Evidence/citation issues
-  - Answers are grounded only in retrieved chunks; ensure your docs were ingested
-  - Check that section tags exist so citations render like `[E1 · 机制研究结果]`
+### Evidence/citation issues
+- Answers are grounded only in retrieved chunks; ensure your docs were ingested
+- Check that section tags exist so citations render like `[E1 · 机制研究结果]`
 
-FAQ
----
+## ❓ FAQ
 
-- Q: Can I use English-only docs?
-  - A: Yes, but keep the Chinese section headers so the parser recognizes sections.
+### Can I use English-only docs?
+Yes, but keep the Chinese section headers so the parser recognizes sections.
 
-- Q: How do I add new papers?
-  - A: Place normalized `.md` files under `data/summaries/` and run the ingest CLI.
+### How do I add new papers?
+Place normalized `.md` files under `data/summaries/` and run the ingest CLI.
 
-- Q: How are units normalized?
-  - A: See `ingest/normalization.py`. Tumor volume → mm³, dose → mg/kg, etc.
+### How are units normalized?
+See `ingest/normalization.py`. Tumor volume → mm³, dose → mg/kg, etc.
 
-- Q: How are citations formatted?
-  - A: The retriever builds evidence packs; the agent formats citations: `[E# · Section]`.
+### How are citations formatted?
+The retriever builds evidence packs; the agent formats citations: `[E# · Section]`.
 
-Testing
--------
+## 🧪 Testing
 
 ```bash
 conda activate toxirag
 pytest --maxfail=1
 ```
 
-License
--------
+## 📄 License
 
 Apache-2.0 (or project default). See repository for details.
 
