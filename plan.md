@@ -137,7 +137,7 @@ Success criteria
 - [x] Add `readme` Quickstart, Troubleshooting, and FAQ for data format
 - [x] Provide `scripts` usage examples and sample `.md` in `data/samples/`
 - [ ] Optional: implement `api/` FastAPI endpoints mirroring app flows
-- [ ] **Git**: Final commit M6 to beta branch, merge to main
+- [x] **Git**: Final commit M6 to beta branch, merge to main
 
 Deliverables
 - Updated `README.md`, samples in `data/samples/`, script examples
