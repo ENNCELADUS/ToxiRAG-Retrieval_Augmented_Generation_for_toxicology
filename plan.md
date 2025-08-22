@@ -134,8 +134,8 @@ Success criteria
 - E2E test green with correct citation formatting and grounding score ≥ target
 
 ### M6 — Quality, docs, and polish
-- [ ] Add `readme` Quickstart, Troubleshooting, and FAQ for data format
-- [ ] Provide `scripts` usage examples and sample `.md` in `data/samples/`
+- [x] Add `readme` Quickstart, Troubleshooting, and FAQ for data format
+- [x] Provide `scripts` usage examples and sample `.md` in `data/samples/`
 - [ ] Optional: implement `api/` FastAPI endpoints mirroring app flows
 - [ ] **Git**: Final commit M6 to beta branch, merge to main
 
@@ -145,6 +145,31 @@ Deliverables
 
 Success criteria
 - New contributors can ingest and query within 10 minutes using README
+
+### M7 — Finetuning for Production Usage (config, UX, ops)
+- [ ] Configure durable LanceDB path (no `/tmp`):
+  - Default `LANCEDB_URI` to a project data dir (e.g., `data/knowledge_base/lancedb/toxicology_docs.lance`)
+  - Add rotation/backup policy and simple health check command
+  - Versioned tables and reindex script (`scripts/reindex.py`) documentation
+- [ ] Evidence jump/locating in UI:
+  - Store precise source anchors: file path, section header slug, and optional page index
+  - Add "Open source" button per citation → scroll/anchor to the section in a preview panel
+  - Preserve page/table references in evidence pack; expose in tooltip
+- [ ] API key management strategy:
+  - Startup validation with clear error states; masked display in UI; never log raw keys
+  - Support per-provider scoped keys via `.env` (`OPENAI_API_KEY`, `GOOGLE_API_KEY`) and runtime override
+  - Rate-limit/retry/backoff defaults; circuit breaker for repeated failures
+  - Test gates: skip real API tests if keys missing; mock by default
+- [ ] Retrieval UX polish:
+  - Highlight matched spans in snippets; filters by section/type; pagination for long result lists
+  - Show combined/vector/BM25 scores and weights; allow user tuning with sensible limits
+- [ ] Observability & error reporting:
+  - Structured logs for embed, retrieve, rank, generate with durations
+  - Surface grounding score and evidence sufficiency in UI badges
+  - Centralize exceptions with user-friendly messages and issue templates
+- [ ] Security & privacy:
+  - Redact PII in logs; add `.env.example` guidance for secrets handling
+  - Document data handling boundaries (local only by default)
 
 ## Scale target
 - Support pilot corpus of 500–1,000 Markdown docs for ingest and retrieval

@@ -4,24 +4,49 @@ Main interface for liver cancer toxicity prediction and experiment planning.
 """
 
 import os
+import sys
 import streamlit as st
 import tempfile
 import asyncio
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
+# Add project root to Python path for imports
+project_root = Path(__file__).parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
+
 # Local imports (will be created)
 try:
     from ingest.ingest_local import ingest_markdown_file
     from retriever.retriever import retrieve_relevant_docs
     from llm.agentic_pipeline import create_agentic_response
-except ImportError:
-    st.error("Missing local modules. Please ensure ingest/, retriever/, and llm/ modules are implemented.")
+    from config.settings import settings
+    import_success = True
+    # Optional: show success message in sidebar
+    # st.sidebar.success("✅ 模块导入成功")
+except ImportError as e:
+    import_success = False
+    import traceback
+    error_details = traceback.format_exc()
+    st.error(f"Import failed: {e}")
+    st.error(f"Full traceback:\n{error_details}")
+    st.info(f"Current working directory: {os.getcwd()}")
+    st.info(f"Project root added to path: {project_root}")
+    with st.expander("Show Python Path Details"):
+        for i, path in enumerate(sys.path):
+            st.text(f"{i}: {path}")
+    
+    # Try to provide specific error information
+    if "ingest_markdown_file" in str(e):
+        st.error("Specific issue: Cannot import ingest_markdown_file function")
+    if "No module named" in str(e):
+        st.error("Module not found - check if running from project root directory")
 
 def setup_page_config():
     """Configure Streamlit page settings."""
     st.set_page_config(
-        page_title="ToxiRAG - 肝癌毒性预测系统",
+        page_title="ToxiRAG-基于检索增强生成的AI辅助动物实验预测平台",
         page_icon="🧬",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -36,24 +61,38 @@ def setup_sidebar() -> Dict[str, Any]:
     openai_api_key = st.sidebar.text_input(
         "OpenAI API Key",
         type="password",
-        value=os.getenv("OPENAI_API_KEY", ""),
+        value=settings.openai_api_key or "",
         help="用于 GPT-5 Nano 和 OpenAI 嵌入"
     )
     
     google_api_key = st.sidebar.text_input(
         "Google API Key", 
         type="password",
-        value=os.getenv("GOOGLE_API_KEY", ""),
+        value=settings.google_api_key or "",
         help="用于 Gemini 2.5 Flash"
     )
     
     # Model selection
     st.sidebar.subheader("模型选择")
-    llm_provider = st.sidebar.selectbox(
-        "LLM 提供商",
-        ["openai", "gemini"],
-        help="选择主要的语言模型提供商"
+    
+    # Available models
+    available_models = {
+        "gpt-5-mini": "openai",
+        "gpt-5-nano": "openai", 
+        "gemini-2.5-flash": "gemini"
+    }
+    
+    model_list = list(available_models.keys())
+    default_index = model_list.index(settings.default_llm_model) if settings.default_llm_model in model_list else 1
+    selected_model = st.sidebar.selectbox(
+        "选择模型",
+        model_list,
+        index=default_index,
+        help="选择具体的语言模型"
     )
+    
+    # Derive provider from selected model
+    llm_provider = available_models[selected_model]
     
     # Embedding provider
     embedding_provider = st.sidebar.selectbox(
@@ -72,15 +111,18 @@ def setup_sidebar() -> Dict[str, Any]:
         "openai_api_key": openai_api_key,
         "google_api_key": google_api_key,
         "llm_provider": llm_provider,
+        "selected_model": selected_model,
         "embedding_provider": embedding_provider,
         "max_tokens": max_tokens,
         "temperature": temperature,
         "top_k_docs": top_k_docs
     }
 
-async def run_async_agentic_response(query: str, config: Dict[str, Any], collection_name: str = "tcm_tox", use_reasoning_tools: bool = True):
+async def run_async_agentic_response(query: str, config: Dict[str, Any], collection_name: str = None, use_reasoning_tools: bool = True):
     """Wrapper to run async agentic response in Streamlit."""
     try:
+        if collection_name is None:
+            collection_name = settings.collection_name
         response = await create_agentic_response(
             query=query,
             config=config,
@@ -114,28 +156,57 @@ def ingest_section(config: Dict[str, Any]):
         
         with col1:
             if st.button("🚀 开始摄取", key="ingest_button"):
-                try:
-                    with st.spinner("正在处理文件..."):
-                        # Call ingestion function (async)
-                        result = asyncio.run(ingest_markdown_file(
-                            file_path=tmp_file_path,
-                            collection_name="tcm_tox"
-                        ))
-                        st.success(f"✅ 文件摄取成功！处理了 {result.get('chunks', 0)} 个文档块")
-                except Exception as e:
-                    st.error(f"❌ 摄取失败: {str(e)}")
-                finally:
-                    # Clean up temp file
-                    if os.path.exists(tmp_file_path):
-                        os.unlink(tmp_file_path)
+                if not import_success:
+                    st.error("❌ 摄取失败: 模块导入失败，请检查上面的错误信息")
+                else:
+                    try:
+                        with st.spinner("正在处理文件..."):
+                            # Call ingestion function (async)
+                            result = asyncio.run(ingest_markdown_file(
+                                file_path=tmp_file_path,
+                                collection_name=settings.collection_name
+                            ))
+                            st.success(f"✅ 文件摄取成功！处理了 {result.get('chunks', 0)} 个文档块")
+                    except NameError as e:
+                        st.error(f"❌ 摄取失败: {e}")
+                        st.error("函数未定义，可能是导入问题")
+                        st.info("请确保从项目根目录运行 Streamlit: `streamlit run app/main_app.py`")
+                    except Exception as e:
+                        st.error(f"❌ 摄取失败: {str(e)}")
+                        st.error("请检查文件格式和API配置")
+                        import traceback
+                        st.error(f"详细错误信息:\n{traceback.format_exc()}")
+                    finally:
+                        # Clean up temp file
+                        if os.path.exists(tmp_file_path):
+                            os.unlink(tmp_file_path)
         
         with col2:
-            # Preview content
-            st.text_area("文件预览", content[:500] + "..." if len(content) > 500 else content, height=100)
+            # Enhanced file preview with structure analysis
+            st.subheader("📄 文件预览")
+            
+            # Show file metadata
+            lines = content.split('\n')
+            st.info(f"📊 文件信息: {len(lines)} 行, {len(content)} 字符")
+            
+            # Analyze markdown structure
+            headers = [line for line in lines[:50] if line.strip().startswith('#')]
+            if headers:
+                st.write("**文档结构预览:**")
+                for header in headers[:10]:  # Show first 10 headers
+                    level = len(header) - len(header.lstrip('#'))
+                    st.write(f"{'  ' * (level-1)}• {header.strip('#').strip()}")
+                if len(headers) > 10:
+                    st.write(f"... 还有 {len(headers)-10} 个标题")
+            
+            # Show content preview
+            preview_text = content[:800] + "..." if len(content) > 800 else content
+            st.text_area("内容预览", preview_text, height=150, disabled=True)
 
 def gpt5_reasoning_tab(config: Dict[str, Any]):
-    """GPT-5 retrieval and reasoning tab using new agentic pipeline."""
-    st.header("🤖 检索与回答（GPT-5）")
+    """Retrieval and reasoning tab using new agentic pipeline."""
+    model_name = config["selected_model"]
+    st.header(f"🤖 检索与回答（{model_name}）")
     
     # Check API keys
     if not config["openai_api_key"] and not config["google_api_key"]:
@@ -207,11 +278,13 @@ def gpt5_reasoning_tab(config: Dict[str, Any]):
     
     with col1:
         # Show query parameters
-        st.info(f"🔧 当前配置: {config['llm_provider'].upper()} | 检索文档数: {config['top_k_docs']} | 温度: {config['temperature']}")
+        model_display = config['selected_model']
+        st.info(f"🔧 当前配置: {model_display} | 检索文档数: {config['top_k_docs']} | 温度: {config['temperature']}")
 
 def reasoning_visualization_tab(config: Dict[str, Any]):
     """Reasoning visualization tab with advanced agentic pipeline."""
-    st.header("🧠 推理可视化（高级分析）")
+    embedding_name = settings.openai_embed_model if config["embedding_provider"] == "openai" else config["embedding_provider"]
+    st.header(f"🧠 推理可视化（{embedding_name}）")
     
     # Check API keys
     if not config["openai_api_key"] and not config["google_api_key"]:
@@ -240,7 +313,7 @@ def reasoning_visualization_tab(config: Dict[str, Any]):
                     response = asyncio.run(run_async_agentic_response(
                         query=query,
                         config=config,
-                        collection_name="tcm_tox",
+                        collection_name=settings.collection_name,
                         use_reasoning_tools=True  # Advanced reasoning for this tab
                     ))
                     
@@ -313,7 +386,9 @@ def reasoning_visualization_tab(config: Dict[str, Any]):
     
     with col1:
         # Advanced reasoning parameters
-        st.info(f"🔧 高级配置: {config['llm_provider'].upper()} + 知识推理工具 | 嵌入: text-embedding-3-large")
+        model_display = config['selected_model']
+        embedding_display = settings.openai_embed_model if config['embedding_provider'] == 'openai' else config['embedding_provider']
+        st.info(f"🔧 高级配置: {model_display} + 知识推理工具 | 嵌入: {embedding_display}")
         
         # Show reasoning tools info
         with st.expander("ℹ️ 高级推理功能"):
@@ -341,7 +416,7 @@ def main():
     setup_page_config()
     
     # Header
-    st.title("🧬 ToxiRAG - 肝癌毒性预测系统")
+    st.title("🧬 ToxiRAG-基于检索增强生成的AI辅助动物实验预测平台")
     st.markdown("*基于检索增强生成的AI辅助动物实验预测平台*")
     
     # Sidebar configuration
@@ -356,8 +431,10 @@ def main():
     with st.expander("📁 知识库管理", expanded=False):
         ingest_section(config)
     
-    # Main tabs
-    tab1, tab2 = st.tabs(["🤖 检索与回答（GPT-5）", "🧠 推理可视化（OpenAI embed）"])
+    # Main tabs with dynamic model names
+    model_name = config["selected_model"]
+    embedding_name = settings.openai_embed_model if config["embedding_provider"] == "openai" else config["embedding_provider"]
+    tab1, tab2 = st.tabs([f"🤖 检索与回答（{model_name}）", f"🧠 推理可视化（{embedding_name}）"])
     
     with tab1:
         gpt5_reasoning_tab(config)

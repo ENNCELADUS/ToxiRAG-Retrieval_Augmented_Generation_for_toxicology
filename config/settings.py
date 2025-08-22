@@ -23,7 +23,8 @@ class ToxiRAGSettings(BaseSettings):
     gemini_model: str = "gemini-2.5-flash"
     
     # Vector Database
-    lancedb_uri: str = "tmp/lancedb/agentic_rag_docs.lance"
+    # Default to the prebuilt local test store to avoid external calls in tests
+    lancedb_uri: str = "tmp/toxirag_lancedb"
     collection_name: str = "toxicology_docs"
     
     # Retrieval Configuration

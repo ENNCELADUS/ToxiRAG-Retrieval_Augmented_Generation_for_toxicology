@@ -130,6 +130,7 @@ dmypy.json
 
 # IDE specific files
 .vscode/
+.cursor/
 .idea/
 *.swp
 *.swo
@@ -146,6 +147,7 @@ Desktop.ini
 # Project specific
 data/processed/
 data/raw/
+data/knowledge_base/
 logs/
 *.qdrant/
 .qdrant/

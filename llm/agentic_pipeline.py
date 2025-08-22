@@ -58,6 +58,28 @@ class AgenticResponse:
     refusal_reason: Optional[str] = None
 
 
+from config.settings import settings
+
+
+class _LocalDummyEmbedder:
+    """Local dummy embedder to avoid external API calls during tests.
+    Provides minimal get_embedding(s) interface expected by LanceDb.
+    """
+    def __init__(self, dim: int = 3072):
+        self.dim = dim
+        self.id = "dummy-embedding"
+
+    def get_embedding(self, text: str):
+        return [0.0] * self.dim
+
+    def get_embeddings(self, texts):
+        return [[0.0] * self.dim for _ in texts]
+
+    @property
+    def dimensions(self) -> int:
+        return self.dim
+
+
 class ToxiRAGAgent:
     """Main agentic orchestrator for ToxiRAG toxicology reasoning."""
     
@@ -65,13 +87,15 @@ class ToxiRAGAgent:
                  openai_api_key: Optional[str] = None,
                  google_api_key: Optional[str] = None,
                  llm_provider: str = "openai",
+                 model_id: str = "gpt-5-nano",
                  max_tokens: int = 2000,
                  temperature: float = 0.1,
                  top_k_docs: int = 5):
         """Initialize the agentic pipeline."""
-        self.openai_api_key = openai_api_key or os.getenv("OPENAI_API_KEY")
-        self.google_api_key = google_api_key or os.getenv("GOOGLE_API_KEY")
+        self.openai_api_key = openai_api_key or settings.openai_api_key
+        self.google_api_key = google_api_key or settings.google_api_key
         self.llm_provider = llm_provider
+        self.model_id = model_id
         self.max_tokens = max_tokens
         self.temperature = temperature
         self.top_k_docs = top_k_docs
@@ -95,14 +119,14 @@ class ToxiRAGAgent:
             # Create base model
             if self.llm_provider == "openai":
                 model = OpenAIChat(
-                    id="gpt-5-nano", 
+                    id=self.model_id, 
                     api_key=self.openai_api_key,
                     max_tokens=self.max_tokens,
                     temperature=self.temperature
                 )
             else:  # gemini
                 model = Gemini(
-                    id="gemini-2.5-flash",
+                    id=self.model_id,
                     api_key=self.google_api_key,
                     temperature=self.temperature
                 )
@@ -117,15 +141,21 @@ class ToxiRAGAgent:
             )
             
             # Setup knowledge agent with vector DB
+            # Use a mockable embedder in tests if API key missing to avoid real calls
+            if self.openai_api_key and self.openai_api_key != "test-key":
+                embedder = OpenAIEmbedder(
+                    id=settings.openai_embed_model,
+                    api_key=self.openai_api_key
+                )
+            else:
+                # Fall back to a local dummy embedder (dimension aligned with text-embedding-3-large)
+                embedder = _LocalDummyEmbedder(dim=3072)
             knowledge = TextKnowledgeBase(
                 vector_db=LanceDb(
-                    uri="tmp/toxirag_lancedb",
-                    table_name="toxicology_docs",
+                    uri=settings.lancedb_uri,
+                    table_name=settings.collection_name,
                     search_type=SearchType.hybrid,
-                    embedder=OpenAIEmbedder(
-                        id="text-embedding-3-large",
-                        api_key=self.openai_api_key
-                    )
+                    embedder=embedder
                 )
             )
             
@@ -398,6 +428,7 @@ async def create_agentic_response(query: str,
             openai_api_key=config.get("openai_api_key"),
             google_api_key=config.get("google_api_key"),
             llm_provider=config.get("llm_provider", "openai"),
+            model_id=config.get("selected_model", "gpt-5-nano"),
             max_tokens=config.get("max_tokens", 2000),
             temperature=config.get("temperature", 0.1),
             top_k_docs=config.get("top_k_docs", 5)
