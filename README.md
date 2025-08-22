@@ -2,7 +2,7 @@
 
 Evidence-grounded RAG system for toxicology research (Chinese/English) with strict normalization, hybrid retrieval over LanceDB, and agentic reasoning. Answers always include bracketed citations like `[E1 · 实验分组与给药]`.
 
-## 🚀 Getting Started (Quickstart)
+## Getting Started (Quickstart)
 
 ### 1. Create and activate conda environment
 ```bash
@@ -35,7 +35,7 @@ streamlit run app/main_app.py
 - **Ask questions**: Type in Chinese or English; answers will include citations like `[E1 · 实验分组与给药]`
 - **Try the sample**: Use `data/samples/mini_sample.md` for testing
 
-## 📁 Project Structure
+## Project Structure
 
 - `ingest/`: Markdown parsing, normalization, chunking
 - `retriever/`: Hybrid search (vector + BM25), evidence packs
@@ -44,7 +44,7 @@ streamlit run app/main_app.py
 - `data/`: `summaries/` (real papers), `samples/` (toy example)
 - `tests/`: Unit + e2e tests (bilingual, realistic data)
 
-## 📋 Data Format (Strict Template)
+## Data Format (Strict Template)
 
 Documents must follow the strict toxicology template used by the parser. Key rules:
 
@@ -55,7 +55,7 @@ Documents must follow the strict toxicology template used by the parser. Key rul
 
 See `data/samples/mini_sample.md` for a minimal, valid example.
 
-## ⚡ CLI Usage
+## CLI Usage
 
 ### Ingest Markdown (.md) into LanceDB
 
@@ -84,7 +84,7 @@ conda activate toxirag
 python scripts/reindex.py --verbose
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### Missing API keys
 - Ensure `.env` has `OPENAI_API_KEY` and/or `GOOGLE_API_KEY`
@@ -102,7 +102,7 @@ python scripts/reindex.py --verbose
 - Answers are grounded only in retrieved chunks; ensure your docs were ingested
 - Check that section tags exist so citations render like `[E1 · 机制研究结果]`
 
-## ❓ FAQ
+## FAQ
 
 ### Can I use English-only docs?
 Yes, but keep the Chinese section headers so the parser recognizes sections.
@@ -116,14 +116,14 @@ See `ingest/normalization.py`. Tumor volume → mm³, dose → mg/kg, etc.
 ### How are citations formatted?
 The retriever builds evidence packs; the agent formats citations: `[E# · Section]`.
 
-## 🧪 Testing
+## Testing
 
 ```bash
 conda activate toxirag
 pytest --maxfail=1
 ```
 
-## 📄 License
+## License
 
 Apache-2.0 (or project default). See repository for details.
 

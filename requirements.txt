@@ -21,18 +21,27 @@ orjson==3.10.12
 ragas==0.3.2
 
 # LLM providers
-anthropic==0.48.0
-cohere==5.17.4
+anthropic==0.64.0
+cohere==5.17.0
 google-genai==1.31.0
 
 # Vector databases
-lancedb==0.17.2
+lancedb==0.24.3
 
 # UI framework
-streamlit==1.42.0
+streamlit==1.48.1
 
 # AI framework
-agno==0.8.15
+agno==1.7.11
+
+# OpenAI and language model dependencies
+openai==1.100.2
+langchain==0.3.27
+langchain-community==0.3.27
+langchain-core==0.3.74
+langchain-openai==0.3.30
+langchain-text-splitters==0.3.9
+tiktoken==0.11.0
 
 # Scientific computing
 numpy==2.2.0
@@ -50,8 +59,8 @@ pytest-cov==6.0.0
 typing-extensions==4.12.2
 
 # Type stubs
-types-requests>=2.32.0
-types-urllib3>=1.26.0
+types-requests==2.32.4.20250809
+types-urllib3==1.26.25.14
 
 # Development dependencies
 ruff==0.8.4
