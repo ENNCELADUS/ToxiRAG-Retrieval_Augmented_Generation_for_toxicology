@@ -146,7 +146,7 @@ Deliverables
 Success criteria
 - New contributors can ingest and query within 10 minutes using README
 
-### M7 — Finetuning for Production Usage (config, UX, ops)
+### M7 — Finetuning for Production Usage and Evaluation
 - [x] Configure durable LanceDB path (no `/tmp`):
   - Default `LANCEDB_URI` to a project data dir (e.g., `data/knowledge_base/lancedb/toxicology_docs.lance`)
   - Add rotation/backup policy and simple health check command
@@ -156,25 +156,56 @@ Success criteria
   - Prevent duplicate content blocks from entering database during upload/ingest process
   - Show duplicate detection warnings in UI with skip/overwrite options
   - Maintain ingestion performance while ensuring data uniqueness
-- [ ] Evidence jump/locating in UI:
-  - Store precise source anchors: file path, section header slug, and optional page index
-  - Add "Open source" button per citation → scroll/anchor to the section in a preview panel
-  - Preserve page/table references in evidence pack; expose in tooltip
-- [ ] API key management strategy:
-  - Startup validation with clear error states; masked display in UI; never log raw keys
-  - Support per-provider scoped keys via `.env` (`OPENAI_API_KEY`, `GOOGLE_API_KEY`) and runtime override
-  - Rate-limit/retry/backoff defaults; circuit breaker for repeated failures
-  - Test gates: skip real API tests if keys missing; mock by default
-- [ ] Retrieval UX polish:
-  - Highlight matched spans in snippets; filters by section/type; pagination for long result lists
-  - Show combined/vector/BM25 scores and weights; allow user tuning with sensible limits
-- [ ] Observability & error reporting:
-  - Structured logs for embed, retrieve, rank, generate with durations
-  - Surface grounding score and evidence sufficiency in UI badges
-  - Centralize exceptions with user-friendly messages and issue templates
-- [ ] Security & privacy:
-  - Redact PII in logs; add `.env.example` guidance for secrets handling
-  - Document data handling boundaries (local only by default)
+- [ ] Production-grade evaluation harness with IR metrics and domain-specific quality checks:
+  - **A) Core eval package structure**:
+    - Create `eval/datasets/` (golden_schema.py, loaders.py)
+    - Create `eval/scorers/` (ir_at_k.py for P@K/R@K/MAP@K/MRR, ragas_adapters.py, grounding.py, domain.py)
+    - Create `eval/benchmark/` (latency.py, embedding_quality.py) and `eval/regress/` (compare.py)
+    - Create `eval/report/` (aggregate.py, plots.py) for summary tables and optional charts
+    - Implement CLI runner `scripts/eval_run.py` with dataset loading, retrieval ranking, IR metrics computation, RAGAS integration, performance timing, and regression checking
+  - **B) Enhanced RAGAS + toxicology-specific metrics**:
+    - RAGAS integration for faithfulness/answer correctness baseline
+    - Citation accuracy: rule-based verification of cited chunks containing claimed entities/values (dose, units, strain) with token-overlap/regex validation plus LLM-adjudicated fallback
+    - Domain relevance: lexical coverage of toxicology key terms (species, strain, dose unit, organ, endpoint) and embedding proximity to toxicology domain centroid
+    - Grounding score with evidence sufficiency: coverage (% answer tokens traceable to evidence spans), consistency (penalize contradictions), sufficiency thresholds (pass if coverage ≥0.8 and zero contradictions)
+  - **C) Automated golden question generation from KB**:
+    - Sampler to traverse Markdown/JSON KB extracting atomic facts, tables, bullet points
+    - Template-based Q/A generation with exact text spans and doc_id/start_char/end_char tracking
+    - Quality filters: deduplicate by normalized question hash, reject ambiguous spans, balance coverage across species/models/dose/timepoints
+    - Export to `data/golden/{split}.jsonl` using standardized schema
+  - **D) Performance benchmarking aligned with PDF metrics**:
+    - Retrieval latency: p50/p95 per query and end-to-end (embed → index → top-k)
+    - Embedding quality: kNN neighbor purity against labeled topic/section IDs with silhouette/NMI
+    - IR metrics: Precision@K, Recall@K, MAP@K, MRR across K ∈ {5,10,15} using top-k framing from Module-2 slides
+    - Response accuracy: RAGAS metrics + Domain/Citation/Grounding scores
+  - **E) Regression testing and CI integration**:
+    - Baseline store in `runs/baselines/main.json` with metric means and 95% CIs
+    - Regression detection via `eval/regress/compare.py` flagging metric degradation beyond tolerance
+    - Pytest integration with `tests/test_eval_regression.py` for smoke testing
+    - GitHub Actions workflow for PR evaluation with artifact uploads
+  - **Configuration and outputs**:
+    - `configs/retriever.yaml` and `configs/eval.yaml` with metric definitions and regression gates
+    - JSON/CSV reports with IR metrics, RAGAS scores, latency distributions, and regression analysis
+    - Optional matplotlib charts for visualization and performance tracking
+- [ ] **Git**: Commit M7 production optimizations to beta branch and push
+
+Deliverables
+- Complete `eval/` package with modular scorers, benchmark tools, and regression testing
+- Production CLI runner `scripts/eval_run.py` with comprehensive metric computation
+- Automated golden question generation producing ≥1,000 span-grounded Q/A pairs
+- Configuration files (`configs/retriever.yaml`, `configs/eval.yaml`) with metric definitions and regression gates
+- Baseline metrics stored in `runs/baselines/main.json` with confidence intervals
+- GitHub Actions CI workflow for automated evaluation on PRs
+- Comprehensive evaluation documentation and usage examples
+
+Success criteria  
+- IR metrics (P@5/10/15, R@5/10/15, MAP@10, MRR@10) computed per Module-2 slide definitions with top-k reporting
+- RAGAS integration operational with toxicology-specific metrics (citation_accuracy, domain_relevance, grounding_score) implemented and unit-tested
+- Automated golden generation achieves <5% deduplication rate with balanced coverage across toxicology domains
+- Performance benchmarking reports p50/p95 latencies and embedding neighbor purity on labeled KB subsets
+- Regression gates successfully block PRs with metric degradation beyond configured tolerances
+- Single command execution (`python scripts/eval_run.py ...`) reproduces all metrics and generates JSON/CSV reports
+- Example evaluation artifacts committed under `runs/examples/` with README documentation
 
 ### M8 — Comprehensive Technical Documentation ✅ COMPLETED
 - [x] Create comprehensive `description.md` with technical architecture:
@@ -198,6 +229,113 @@ Success criteria
   - Testing strategies and contribution guidelines
   - Performance benchmarks and scaling considerations
 - [x] **Git**: Commit M8 documentation to beta branch and push
+
+Deliverables
+- Comprehensive `description.md` with technical architecture details
+- Complete CLI and GUI usage manuals
+- Developer guide with API reference and contribution guidelines
+
+Success criteria
+- Technical documentation covers all system components with clear examples
+- New developers can understand architecture and extend system using guides
+- All usage scenarios documented with troubleshooting support
+
+### M8.1 — Enhanced Data Table Schema and Parsing ✅ COMPLETED
+- [x] Enhanced DataTable schema to capture all content types:
+  - Added `description` field to DataTable class for descriptive text before tables
+  - Maintains backward compatibility with existing functionality
+  - Supports comprehensive content capture without information loss
+- [x] Improved `_parse_single_table` method in markdown_schema.py:
+  - Captures ALL content between section headers (descriptions, tables, source info)
+  - Handles multiple content patterns: description-only, table-only, mixed content
+  - Processes complex layouts with multi-line descriptions and embedded source info
+  - Creates DataTable objects even for description-only sections (like "未说明")
+- [x] Enhanced chunking integration:
+  - Updated `_format_data_table` in chunking.py to include description content
+  - Proper formatting with spacing and structure for better readability
+  - Ensures descriptions are searchable and indexed in vector database
+- [x] Comprehensive testing and validation:
+  - Created `test_enhanced_table_parsing.py` with 4 comprehensive test cases
+  - Tested backward compatibility with existing files (single_sample.md)
+  - Validated complex patterns from 肝癌.md summary file
+  - Confirmed all existing tests still pass (6/7 passing, 1 skipped due to proxy)
+- [x] **Git**: Ready for commit M8.1 enhancements to beta branch
+
+Deliverables
+- Enhanced DataTable schema with description field support
+- Improved table parsing capturing all content types (text, tables, sources)
+- Updated chunking to preserve descriptive content in searchable format
+- Comprehensive test suite validating all enhancement patterns
+
+Success criteria
+- All content from data table sections properly captured and preserved
+- No information loss during parsing of complex markdown patterns
+- Backward compatibility maintained for existing document processing
+- Enhanced parsing handles 肝癌.md patterns including description-only sections
+
+### M9 — Performance Optimization and Scalability (Not Urgent)
+- [ ] Retrieval performance optimization:
+  - Implement caching layer for frequent queries and embedding results
+  - Add batch processing for multiple document ingestion with progress tracking
+  - Optimize vector similarity search with approximate nearest neighbor (ANN) indexing
+  - Profile and optimize memory usage during large document processing
+- [ ] Advanced search capabilities:
+  - Implement semantic query expansion using LLM-generated synonyms
+  - Add multi-modal search support for images and tables within documents
+  - Develop domain-specific query templates for common toxicology questions
+  - Implement query suggestion and auto-completion based on existing knowledge
+- [ ] Data management enhancements:
+  - Add incremental indexing for new documents without full reprocessing
+  - Implement data versioning and rollback capabilities for knowledge base updates
+  - Add data quality monitoring with automated anomaly detection
+  - Develop export/import functionality for knowledge base migration
+- [ ] GUI interface improvements and mode clarification:
+  - Fix mode display issue: remove model names from mode titles (both modes use text-embedding-3-large for embedding)
+  - Clean up mode names to show only "检索与回答" and "推理可视化" without model suffixes
+  - Add detailed mode descriptions to `description.md` explaining the differences between Q&A mode and reasoning visualization mode
+  - Optimize GUI interface design for research workflows: cleaner layout, better organization, improved typography and spacing
+  - Enhance user experience with clear visual hierarchy, intuitive navigation, and researcher-friendly interface elements
+  - Add mode-specific help text and usage guidance directly in the interface
+- [ ] Advanced analytics and insights:
+  - Implement query analytics dashboard showing usage patterns and popular topics
+  - Add knowledge gap analysis identifying under-represented areas in corpus
+  - Develop recommendation engine for related papers and research directions
+  - Create automated summarization for document collections by topic/theme
+- [ ] **Git**: Commit M9 optimizations to beta branch and push
+
+Deliverables
+- Performance-optimized retrieval system with caching and ANN indexing
+- Enhanced search capabilities with semantic expansion and templates
+- Advanced data management tools for versioning and quality monitoring
+- Improved GUI interface with corrected mode displays and researcher-friendly design
+- Comprehensive mode documentation in `description.md` with usage guidance
+- Analytics dashboard and recommendation features
+
+Success criteria
+- 10x improvement in retrieval speed for large document collections (1000+ docs)
+- Advanced search features provide more relevant results than baseline system
+- Data management tools support production-scale knowledge base operations
+- GUI interface provides clear, researcher-friendly experience with corrected mode displays
+- Mode documentation enables users to understand and effectively use both Q&A and reasoning visualization modes
+- Analytics provide actionable insights for knowledge base improvement
+
+### M10 — User Experience and Production Features
+- [ ] Evidence jump/locating in UI:
+  - Store precise source anchors: file path, section header slug, and optional page index
+  - Add "Open source" button per citation → scroll/anchor to the section in a preview panel
+  - Preserve page/table references in evidence pack; expose in tooltip
+- [ ] API key management strategy:
+  - Startup validation with clear error states; masked display in UI; never log raw keys
+  - Support per-provider scoped keys via `.env` (`OPENAI_API_KEY`, `GOOGLE_API_KEY`) and runtime override
+  - Rate-limit/retry/backoff defaults; circuit breaker for repeated failures
+  - Test gates: skip real API tests if keys missing; mock by default
+- [ ] Retrieval UX polish:
+  - Highlight matched spans in snippets; filters by section/type; pagination for long result lists
+  - Show combined/vector/BM25 scores and weights; allow user tuning with sensible limits
+- [ ] Observability & error reporting:
+  - Structured logs for embed, retrieve, rank, generate with durations
+  - Surface grounding score and evidence sufficiency in UI badges
+  - Centralize exceptions with user-friendly messages and issue templates
 
 ## Scale target
 - Support pilot corpus of 500–1,000 Markdown docs for ingest and retrieval

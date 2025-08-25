@@ -8,6 +8,10 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any, Tuple
 from pathlib import Path
 
+from utils.logging_setup import get_logger
+
+logger = get_logger(__name__)
+
 
 @dataclass
 class AnimalInfo:
@@ -73,6 +77,7 @@ class DataTable:
     source_page: Optional[str] = None
     units: Optional[str] = None
     calc_method: Optional[str] = None  # for tumor volume calculations
+    description: Optional[str] = None  # descriptive text before the table
 
 
 @dataclass
@@ -176,10 +181,88 @@ class MarkdownParser:
     def __init__(self):
         self.current_section = None
         
-    def parse_file(self, file_path: Path) -> ToxicologyDocument:
-        """Parse a markdown file following the toxicology template."""
+    def parse_file(self, file_path: Path) -> List[ToxicologyDocument]:
+        """Parse a markdown file that may contain multiple documents."""
         content = file_path.read_text(encoding='utf-8')
-        return self.parse_content(content, str(file_path))
+        return self.parse_multiple_documents(content, str(file_path))
+    
+    def parse_multiple_documents(self, content: str, file_path: Optional[str] = None) -> List[ToxicologyDocument]:
+        """Parse markdown content that may contain multiple documents separated by ---."""
+        # Split content into individual documents
+        document_contents = self._split_into_documents(content)
+        
+        documents = []
+        for i, doc_content in enumerate(document_contents):
+            if doc_content.strip():  # Skip empty documents
+                try:
+                    doc = self.parse_content(doc_content, file_path)
+                    if doc.title:  # Only include documents with valid titles
+                        documents.append(doc)
+                except Exception as e:
+                    logger.warning(f"Failed to parse document {i+1} in {file_path}: {e}")
+                    continue
+        
+        logger.info(f"Successfully parsed {len(documents)} documents from {file_path}")
+        return documents
+    
+    def _split_into_documents(self, content: str) -> List[str]:
+        """Split content into individual documents using title patterns and separators."""
+        lines = content.split('\n')
+        documents = []
+        current_doc_lines = []
+        
+        def is_document_title(line: str) -> bool:
+            """Check if a line is a document title."""
+            line = line.strip()
+            return (line.startswith('# 论文标题:') or 
+                    line.startswith('#  论文标题:') or
+                    (line.startswith('#') and not line.startswith('##') and 
+                     any(keyword in line for keyword in ['研究', '作用', '评价', '影响', '实验', '分析'])))
+        
+        i = 0
+        while i < len(lines):
+            line = lines[i]
+            
+            # Check if this is a document separator (--- followed by a title)
+            if line.strip() == '---' and i + 1 < len(lines):
+                next_line = lines[i + 1].strip()
+                # Check if the next line is a title
+                if is_document_title(next_line):
+                    # This is a document separator
+                    if current_doc_lines:
+                        documents.append('\n'.join(current_doc_lines))
+                        current_doc_lines = []
+                    # Don't include the separator line itself
+                    i += 1
+                    continue
+            
+            # Check if this line itself is a new document title
+            # (But only if we already have some content, to avoid splitting at the very first title)
+            if current_doc_lines and is_document_title(line):
+                # Start a new document
+                if current_doc_lines:
+                    documents.append('\n'.join(current_doc_lines))
+                    current_doc_lines = [line]
+                    i += 1
+                    continue
+            
+            # Add line to current document
+            current_doc_lines.append(line)
+            i += 1
+        
+        # Add the last document if it exists
+        if current_doc_lines:
+            documents.append('\n'.join(current_doc_lines))
+        
+        # Filter out empty documents and documents without titles
+        valid_documents = []
+        for doc_content in documents:
+            lines = doc_content.split('\n')
+            has_title = any(is_document_title(line) for line in lines[:10])
+            if has_title and doc_content.strip():
+                valid_documents.append(doc_content)
+        
+        return valid_documents
     
     def parse_content(self, content: str, file_path: Optional[str] = None) -> ToxicologyDocument:
         """Parse markdown content into structured document."""
@@ -190,9 +273,20 @@ class MarkdownParser:
         while i < len(lines):
             line = lines[i].strip()
             
-            # Title
-            if line.startswith('# ') and not doc.title:
-                doc.title = line[2:].strip()
+            # Title - handle both formats: "# 论文标题:" and "#  论文标题:" (with extra space)
+            if (line.startswith('# 论文标题:') or line.startswith('#  论文标题:')) and not doc.title:
+                # Extract title after "论文标题: "
+                if line.startswith('#  论文标题: '):
+                    title_part = line[8:].strip()  # Remove "#  论文标题: "
+                elif line.startswith('# 论文标题: '):
+                    title_part = line[7:].strip()  # Remove "# 论文标题: "
+                else:
+                    # Fallback for formats without space after colon
+                    if line.startswith('#  论文标题:'):
+                        title_part = line[7:].strip()  # Remove "#  论文标题:"
+                    else:
+                        title_part = line[6:].strip()  # Remove "# 论文标题:"
+                doc.title = title_part
                 # Look for source info on next lines
                 if i + 1 < len(lines) and lines[i + 1].strip().startswith('（来源：'):
                     doc.source_info = lines[i + 1].strip()
@@ -291,7 +385,7 @@ class MarkdownParser:
                 animal.strain = strain_raw if strain_raw else "未说明"
                 animal.strain_norm = self.STRAIN_MAPPINGS.get(strain_raw, None)
             elif line.startswith('- 分组数及每组数量:'):
-                animal.groups_and_counts = line[10:].strip() or "未说明"
+                animal.groups_and_counts = line[11:].strip() or "未说明"
             elif line.startswith('- 总数:'):
                 total_str = line[5:].strip()
                 if total_str and total_str != "未说明":
@@ -336,11 +430,11 @@ class MarkdownParser:
                 break
             
             if line.startswith('- 细胞名称:'):
-                cell.cell_name = line[6:].strip() or "未说明"
+                cell.cell_name = line[7:].strip() or "未说明"
             elif line.startswith('- 接种方式:'):
-                cell.inoculation_method = line[6:].strip() or "未说明"
+                cell.inoculation_method = line[7:].strip() or "未说明"
             elif line.startswith('- 接种量:'):
-                cell.inoculation_amount = line[5:].strip() or "未说明"
+                cell.inoculation_amount = line[6:].strip() or "未说明"
             elif line.startswith('（来源：'):
                 cell.source_page = line.strip()
             
@@ -360,13 +454,13 @@ class MarkdownParser:
                 break
             
             if line.startswith('- 模型类型：'):
-                model.model_type = line[6:].strip() or "未说明"
+                model.model_type = line[7:].strip() or "未说明"
             elif line.startswith('- 肿瘤类型：'):
-                model.tumor_type = line[6:].strip() or "未说明"
+                model.tumor_type = line[7:].strip() or "未说明"
             elif line.startswith('- 接种位置：'):
-                model.inoculation_site = line[6:].strip() or "未说明"
+                model.inoculation_site = line[7:].strip() or "未说明"
             elif line.startswith('- 成瘤时间（天）：'):
-                time_str = line[9:].strip()
+                time_str = line[10:].strip()
                 if time_str and time_str != "未说明":
                     try:
                         model.tumor_formation_days = int(re.search(r'\d+', time_str).group())
@@ -380,7 +474,7 @@ class MarkdownParser:
                     except (AttributeError, ValueError):
                         pass
             elif line.startswith('- 成瘤总天数：'):
-                time_str = line[7:].strip()
+                time_str = line[8:].strip()
                 if time_str and time_str != "未说明":
                     try:
                         model.total_study_days = int(re.search(r'\d+', time_str).group())
@@ -528,12 +622,13 @@ class MarkdownParser:
         return tables, i - 1
     
     def _parse_single_table(self, lines: List[str], start_idx: int, title: str) -> Tuple[Optional[DataTable], int]:
-        """Parse a single markdown table."""
+        """Parse a single markdown table section with descriptive content."""
         i = start_idx + 1
         headers = []
         rows = []
         source_page = None
         units = None
+        description_lines = []
         
         # Extract units from title
         if '（' in title and '）' in title:
@@ -541,46 +636,64 @@ class MarkdownParser:
             if units_match:
                 units = units_match.group(1)
         
-        # Find table start
-        while i < len(lines) and not lines[i].strip().startswith('|'):
-            line = lines[i].strip()
-            if line.startswith('（来源：'):
-                source_page = line
-            i += 1
-        
-        # Parse headers
-        if i < len(lines) and lines[i].strip().startswith('|'):
-            header_line = lines[i].strip()
-            headers = [cell.strip() for cell in header_line.split('|')[1:-1]]
-            i += 1
-            
-            # Skip separator
-            if i < len(lines) and lines[i].strip().startswith('|'):
-                i += 1
-        
-        # Parse data rows
+        # Collect all content until next section or end
         while i < len(lines):
             line = lines[i].strip()
             
-            if not line.startswith('|') or line.startswith('（来源：'):
-                if line.startswith('（来源：'):
-                    source_page = line
-                    i += 1
+            # Break on section boundaries
+            if line.startswith('#') or line.startswith('---'):
                 break
             
-            row_data = [cell.strip() for cell in line.split('|')[1:-1]]
-            if row_data:
-                rows.append(row_data)
-            
-            i += 1
+            # Check if this is a table line
+            if line.startswith('|'):
+                # Found start of table - parse it
+                if not headers:
+                    # This is the header line
+                    headers = [cell.strip() for cell in line.split('|')[1:-1]]
+                    i += 1
+                    
+                    # Skip separator line
+                    if i < len(lines) and lines[i].strip().startswith('|'):
+                        i += 1
+                else:
+                    # This is a data row
+                    row_data = [cell.strip() for cell in line.split('|')[1:-1]]
+                    if row_data:
+                        rows.append(row_data)
+                    i += 1
+            elif line.startswith('（来源：'):
+                source_page = line
+                i += 1
+            elif line:  # Non-empty line that's not a table or source
+                description_lines.append(line)
+                i += 1
+            else:
+                # Empty line
+                i += 1
         
+        # Create description from collected lines
+        description = '\n'.join(description_lines) if description_lines else None
+        
+        # Create DataTable even if no actual table (to preserve descriptive content)
         if headers and rows:
+            # Full table with data
             return DataTable(
                 title=title,
                 headers=headers,
                 rows=rows,
                 source_page=source_page,
-                units=units
+                units=units,
+                description=description
+            ), i - 1
+        elif description:
+            # Only descriptive content (like "未说明")
+            return DataTable(
+                title=title,
+                headers=[],
+                rows=[],
+                source_page=source_page,
+                units=units,
+                description=description
             ), i - 1
         
         return None, i - 1
@@ -597,11 +710,11 @@ class MarkdownParser:
                 break
             
             if line.startswith('- 检测组织：'):
-                pathology.tissues_examined = line[6:].strip() or "未说明"
+                pathology.tissues_examined = line[7:].strip() or "未说明"
             elif line.startswith('- 染色方法：'):
-                pathology.staining_methods = line[6:].strip() or "未说明"
+                pathology.staining_methods = line[7:].strip() or "未说明"
             elif line.startswith('- 阳性结果表现：'):
-                pathology.positive_results = line[8:].strip() or "未说明"
+                pathology.positive_results = line[9:].strip() or "未说明"
             elif line.startswith('（来源：'):
                 pathology.source_page = line.strip()
             
@@ -661,7 +774,7 @@ class MarkdownParser:
         while i < len(lines):
             line = lines[i].strip()
             
-            if line.startswith('#') and not line.startswith('###'):
+            if (line.startswith('#') and not line.startswith('###')) or line.startswith('---'):
                 break
             
             if line.startswith('###'):
@@ -693,7 +806,16 @@ class MarkdownParser:
                 continue
             
             if line:
-                conclusion_lines.append(line)
+                # Check if the line contains embedded source information
+                if '（来源：' in line:
+                    # Extract the main content and source separately
+                    parts = line.split('（来源：')
+                    main_content = parts[0].strip()
+                    source_part = '（来源：' + parts[1]
+                    conclusion_lines.append(main_content)
+                    conclusion.source_page = source_part
+                else:
+                    conclusion_lines.append(line)
             
             i += 1
         

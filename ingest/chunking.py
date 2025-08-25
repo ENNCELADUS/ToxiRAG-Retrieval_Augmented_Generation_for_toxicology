@@ -417,8 +417,15 @@ class DocumentChunker:
         if table.units:
             content[-1] += f" ({table.units})"
         
+        # Add description if present
+        if table.description:
+            content.append("")  # Empty line for spacing
+            content.append(table.description)
+        
         # Format table
         if table.headers and table.rows:
+            content.append("")  # Empty line before table
+            
             # Header row
             header_row = "| " + " | ".join(table.headers) + " |"
             content.append(header_row)
