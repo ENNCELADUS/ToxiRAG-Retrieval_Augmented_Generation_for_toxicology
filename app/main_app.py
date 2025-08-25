@@ -152,6 +152,20 @@ def ingest_section(config: Dict[str, Any]):
             tmp_file.write(content)
             tmp_file_path = tmp_file.name
         
+        # Deduplication options
+        st.subheader("🔄 重复内容处理")
+        dedup_option = st.radio(
+            "如何处理重复的内容块？",
+            options=["skip", "overwrite", "allow"],
+            format_func=lambda x: {
+                "skip": "🚫 跳过重复内容（推荐）",
+                "overwrite": "🔄 覆盖已有内容", 
+                "allow": "⚠️ 允许重复（不推荐）"
+            }[x],
+            help="选择如何处理与数据库中已有内容相同的文档块",
+            horizontal=True
+        )
+        
         col1, col2 = st.columns(2)
         
         with col1:
@@ -161,12 +175,55 @@ def ingest_section(config: Dict[str, Any]):
                 else:
                     try:
                         with st.spinner("正在处理文件..."):
+                            # Set deduplication parameters based on user choice
+                            skip_duplicates = dedup_option == "skip"
+                            overwrite_duplicates = dedup_option == "overwrite"
+                            
                             # Call ingestion function (async)
                             result = asyncio.run(ingest_markdown_file(
                                 file_path=tmp_file_path,
-                                collection_name=settings.collection_name
+                                collection_name=settings.collection_name,
+                                skip_duplicates=skip_duplicates,
+                                overwrite_duplicates=overwrite_duplicates
                             ))
-                            st.success(f"✅ 文件摄取成功！处理了 {result.get('chunks', 0)} 个文档块")
+                            
+                            # Show detailed results
+                            if result.get("status") == "success":
+                                total_chunks = result.get('chunks', 0)
+                                new_chunks = result.get('new_chunks', 0)
+                                duplicate_chunks = result.get('duplicate_chunks', 0)
+                                overwritten_chunks = result.get('overwritten_chunks', 0)
+                                
+                                if duplicate_chunks > 0 or overwritten_chunks > 0:
+                                    st.success(f"✅ 文件摄取完成！")
+                                    col_a, col_b, col_c = st.columns(3)
+                                    with col_a:
+                                        st.metric("总文档块", total_chunks)
+                                    with col_b:
+                                        st.metric("新增块", new_chunks)
+                                    with col_c:
+                                        if overwritten_chunks > 0:
+                                            st.metric("覆盖块", overwritten_chunks)
+                                        elif duplicate_chunks > 0:
+                                            st.metric("跳过重复", duplicate_chunks)
+                                    
+                                    # Show details of duplicates/overwrites
+                                    if duplicate_chunks > 0:
+                                        with st.expander(f"📋 跳过的重复内容 ({duplicate_chunks} 个)"):
+                                            for dup in result.get('duplicates', []):
+                                                st.write(f"**{dup['section_name']}** - {dup['document_title']}")
+                                                st.code(dup['content_preview'], language=None)
+                                                st.write("---")
+                                    
+                                    if overwritten_chunks > 0:
+                                        with st.expander(f"🔄 覆盖的内容 ({overwritten_chunks} 个)"):
+                                            for dup in result.get('duplicates', []):
+                                                st.write(f"**{dup['section_name']}** - {dup['document_title']}")
+                                                st.code(dup['content_preview'], language=None)
+                                                st.write("---")
+                                else:
+                                    st.success(f"✅ 文件摄取成功！处理了 {new_chunks} 个全新文档块")
+                            
                     except NameError as e:
                         st.error(f"❌ 摄取失败: {e}")
                         st.error("函数未定义，可能是导入问题")

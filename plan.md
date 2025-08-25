@@ -151,7 +151,7 @@ Success criteria
   - Default `LANCEDB_URI` to a project data dir (e.g., `data/knowledge_base/lancedb/toxicology_docs.lance`)
   - Add rotation/backup policy and simple health check command
   - Versioned tables and reindex script (`scripts/reindex.py`) documentation
-- [ ] Implement real-time deduplication during ingestion:
+- [x] Implement real-time deduplication during ingestion:
   - Add content hash checking before inserting new chunks into LanceDB
   - Prevent duplicate content blocks from entering database during upload/ingest process
   - Show duplicate detection warnings in UI with skip/overwrite options

@@ -93,8 +93,15 @@ class ToxiRAGIngester:
         empty_data = []
         return self.db.create_table(self.table_name, data=empty_data, schema=schema)
     
-    async def ingest_file(self, file_path: Path, dry_run: bool = False) -> Dict[str, Any]:
-        """Ingest a single markdown file."""
+    async def ingest_file(self, file_path: Path, dry_run: bool = False, skip_duplicates: bool = True, overwrite_duplicates: bool = False) -> Dict[str, Any]:
+        """Ingest a single markdown file with deduplication options.
+        
+        Args:
+            file_path: Path to the markdown file
+            dry_run: If True, only parse without inserting into database
+            skip_duplicates: If True, skip chunks that already exist (default)
+            overwrite_duplicates: If True, overwrite existing chunks (takes precedence over skip_duplicates)
+        """
         logger.info(f"Processing file: {file_path}")
         
         try:
@@ -117,14 +124,22 @@ class ToxiRAGIngester:
             # Generate embeddings and prepare data
             ingestion_data = await self._prepare_ingestion_data(chunks, doc)
             
+            # Check for duplicates and filter accordingly
+            dedup_result = await self._handle_duplicates(ingestion_data, skip_duplicates, overwrite_duplicates)
+            
             # Insert into database
-            self.table.add(ingestion_data)
-            logger.info(f"Inserted {len(ingestion_data)} chunks into {self.table_name}")
+            if dedup_result["new_chunks"]:
+                self.table.add(dedup_result["new_chunks"])
+                logger.info(f"Inserted {len(dedup_result['new_chunks'])} new chunks into {self.table_name}")
             
             return {
                 "file_path": str(file_path),
                 "document_title": doc.title,
                 "chunks": len(chunks),
+                "new_chunks": len(dedup_result["new_chunks"]),
+                "duplicate_chunks": len(dedup_result["duplicates"]),
+                "overwritten_chunks": len(dedup_result["overwritten"]),
+                "duplicates": dedup_result["duplicates"],
                 "status": "success"
             }
             
@@ -217,6 +232,97 @@ class ToxiRAGIngester:
         import hashlib
         return hashlib.md5(content.encode('utf-8')).hexdigest()
     
+    async def _handle_duplicates(self, ingestion_data: List[Dict[str, Any]], skip_duplicates: bool, overwrite_duplicates: bool) -> Dict[str, Any]:
+        """Handle duplicate content detection and filtering.
+        
+        Args:
+            ingestion_data: List of prepared chunk records
+            skip_duplicates: If True, skip chunks that already exist
+            overwrite_duplicates: If True, overwrite existing chunks
+            
+        Returns:
+            Dict with 'new_chunks', 'duplicates', and 'overwritten' lists
+        """
+        logger.info(f"Checking for duplicates among {len(ingestion_data)} chunks...")
+        
+        try:
+            # Get existing content hashes from database
+            existing_df = self.table.to_pandas()
+            existing_hashes = set(existing_df['content_hash'].tolist()) if len(existing_df) > 0 else set()
+            
+            new_chunks = []
+            duplicates = []
+            overwritten = []
+            
+            for chunk_data in ingestion_data:
+                content_hash = chunk_data['content_hash']
+                
+                if content_hash in existing_hashes:
+                    # Found duplicate
+                    if overwrite_duplicates:
+                        # Remove existing chunk(s) with this hash
+                        remaining_df = existing_df[existing_df['content_hash'] != content_hash]
+                        
+                        # Update in-memory tracking
+                        existing_df = remaining_df
+                        existing_hashes.discard(content_hash)
+                        
+                        # Add to new chunks (will effectively overwrite)
+                        new_chunks.append(chunk_data)
+                        overwritten.append({
+                            "content_hash": content_hash,
+                            "content_preview": chunk_data['content'][:100] + "...",
+                            "section_name": chunk_data['section_name'],
+                            "document_title": chunk_data['document_title']
+                        })
+                        logger.info(f"Will overwrite duplicate: {chunk_data['section_name']}")
+                        
+                    elif skip_duplicates:
+                        # Skip this chunk
+                        duplicates.append({
+                            "content_hash": content_hash,
+                            "content_preview": chunk_data['content'][:100] + "...",
+                            "section_name": chunk_data['section_name'],
+                            "document_title": chunk_data['document_title']
+                        })
+                        logger.info(f"Skipping duplicate: {chunk_data['section_name']}")
+                    else:
+                        # Add anyway (allow duplicates)
+                        new_chunks.append(chunk_data)
+                else:
+                    # New content
+                    new_chunks.append(chunk_data)
+                    existing_hashes.add(content_hash)
+            
+            # If overwriting, need to recreate table with remaining data
+            if overwritten and overwrite_duplicates:
+                logger.info(f"Recreating table to remove {len(overwritten)} overwritten chunks")
+                remaining_df = existing_df[~existing_df['content_hash'].isin([item['content_hash'] for item in overwritten])]
+                
+                # Drop and recreate table
+                self.db.drop_table(self.table_name)
+                if len(remaining_df) > 0:
+                    self._table = self.db.create_table(self.table_name, data=remaining_df.to_dict('records'))
+                else:
+                    self._table = self._create_table()
+            
+            logger.info(f"Deduplication complete: {len(new_chunks)} new, {len(duplicates)} duplicates, {len(overwritten)} overwritten")
+            
+            return {
+                "new_chunks": new_chunks,
+                "duplicates": duplicates,
+                "overwritten": overwritten
+            }
+            
+        except Exception as e:
+            logger.error(f"Error during deduplication: {e}")
+            # Fall back to adding all chunks if deduplication fails
+            return {
+                "new_chunks": ingestion_data,
+                "duplicates": [],
+                "overwritten": []
+            }
+    
     def search_table(self, query: str, limit: int = 10) -> List[Dict[str, Any]]:
         """Search the table using vector similarity."""
         if not query.strip():
@@ -284,10 +390,23 @@ class ToxiRAGIngester:
 
 
 # Convenience functions for CLI usage
-async def ingest_markdown_file(file_path: str, collection_name: str = None, dry_run: bool = False) -> Dict[str, Any]:
-    """Convenience function to ingest a single markdown file."""
+async def ingest_markdown_file(file_path: str, collection_name: str = None, dry_run: bool = False, skip_duplicates: bool = True, overwrite_duplicates: bool = False) -> Dict[str, Any]:
+    """Convenience function to ingest a single markdown file with deduplication options.
+    
+    Args:
+        file_path: Path to the markdown file
+        collection_name: LanceDB table name (defaults to settings.collection_name)
+        dry_run: If True, only parse without inserting into database
+        skip_duplicates: If True, skip chunks that already exist (default)
+        overwrite_duplicates: If True, overwrite existing chunks (takes precedence over skip_duplicates)
+    """
     ingester = ToxiRAGIngester(table_name=collection_name)
-    return await ingester.ingest_file(Path(file_path), dry_run=dry_run)
+    return await ingester.ingest_file(
+        Path(file_path), 
+        dry_run=dry_run,
+        skip_duplicates=skip_duplicates,
+        overwrite_duplicates=overwrite_duplicates
+    )
 
 
 async def ingest_markdown_files(input_path: str, collection_name: str = None, dry_run: bool = False) -> Dict[str, Any]:
