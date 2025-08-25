@@ -273,6 +273,30 @@ Success criteria
 - Backward compatibility maintained for existing document processing
 - Enhanced parsing handles 肝癌.md patterns including description-only sections
 
+### M8.2 — Universal Header Support with Extra Whitespace ✅ COMPLETED
+- [x] Enhanced markdown header parsing to support format variations:
+  - Fixed all section header patterns to accept both standard format (`## section`) and extra space format (`##  section`)
+  - Applied comprehensive fix to all 13 section types: animal info, cell info, tumor model, timeline, experiment groups, data tables, pathology, mechanism, other tests, conclusion, and keywords
+  - Maintained full backward compatibility with existing documents using standard headers
+- [x] Comprehensive testing and validation:
+  - Verified parsing works correctly with mini_sample.md containing headers with extra spaces
+  - Specifically tested "益胃颗粒" document which extensively uses `##  section` format
+  - All integration tests pass: test_mini_sample_integration.py (7/7) and test_single_sample_integration.py (7/7)
+  - All schema unit tests continue to pass (10/10) ensuring no regression
+- [x] **Git**: Ready for commit M8.2 header parsing enhancements to beta branch
+
+Deliverables
+- Enhanced MarkdownParser with universal header format support
+- Robust parsing handling both `## section` and `##  section` patterns seamlessly  
+- Comprehensive test validation across integration and unit test suites
+- Zero breaking changes to existing document processing workflows
+
+Success criteria
+- All documents with header format variations parse correctly without data loss
+- Complete backward compatibility maintained for existing standard-format documents
+- Integration tests demonstrate end-to-end pipeline functionality with enhanced parser
+- No performance degradation in parsing speed or accuracy
+
 ### M9 — Performance Optimization and Scalability (Not Urgent)
 - [ ] Retrieval performance optimization:
   - Implement caching layer for frequent queries and embedding results

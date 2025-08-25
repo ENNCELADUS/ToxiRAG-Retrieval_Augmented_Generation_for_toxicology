@@ -293,73 +293,73 @@ class MarkdownParser:
                 i += 1
                 continue
             
-            # Animal information sections
-            if line.startswith('## 实验小鼠1信息'):
+            # Animal information sections - support both ## and ##  formats
+            if line.startswith('## 实验小鼠1信息') or line.startswith('##  实验小鼠1信息'):
                 doc.mice_info_1, i = self._parse_animal_section(lines, i)
                 continue
-            elif line.startswith('## 实验小鼠2信息'):
+            elif line.startswith('## 实验小鼠2信息') or line.startswith('##  实验小鼠2信息'):
                 doc.mice_info_2, i = self._parse_animal_section(lines, i)
                 continue
-            elif line.startswith('## 实验小鼠3信息'):
+            elif line.startswith('## 实验小鼠3信息') or line.startswith('##  实验小鼠3信息'):
                 doc.mice_info_3, i = self._parse_animal_section(lines, i)
                 continue
-            elif line.startswith('## 实验小鼠4信息'):
+            elif line.startswith('## 实验小鼠4信息') or line.startswith('##  实验小鼠4信息'):
                 doc.mice_info_4, i = self._parse_animal_section(lines, i)
                 continue
-            elif line.startswith('## 实验大鼠信息'):
+            elif line.startswith('## 实验大鼠信息') or line.startswith('##  实验大鼠信息'):
                 doc.rat_info, i = self._parse_animal_section(lines, i)
                 continue
             
-            # Cell information
-            elif line.startswith('## 细胞种类'):
+            # Cell information - support both ## and ##  formats
+            elif line.startswith('## 细胞种类') or line.startswith('##  细胞种类'):
                 doc.cell_info, i = self._parse_cell_section(lines, i)
                 continue
             
-            # Tumor model
-            elif line.startswith('## 肿瘤模型信息'):
+            # Tumor model - support both ## and ##  formats
+            elif line.startswith('## 肿瘤模型信息') or line.startswith('##  肿瘤模型信息'):
                 doc.tumor_model, i = self._parse_tumor_model_section(lines, i)
                 continue
             
-            # Timeline
-            elif line.startswith('## 实验时间线简表'):
+            # Timeline - support both ## and ##  formats
+            elif line.startswith('## 实验时间线简表') or line.startswith('##  实验时间线简表'):
                 doc.timeline, i = self._parse_timeline_section(lines, i)
                 continue
             
-            # Experiment groups
-            elif line.startswith('## 实验分组与给药'):
+            # Experiment groups - support both ## and ##  formats
+            elif line.startswith('## 实验分组与给药') or line.startswith('##  实验分组与给药'):
                 doc.experiment_groups, i = self._parse_experiment_groups_section(lines, i)
                 continue
             
-            # Data tables
-            elif line.startswith('## 数据记录表格'):
+            # Data tables - support both ## and ##  formats
+            elif line.startswith('## 数据记录表格') or line.startswith('##  数据记录表格'):
                 tables, i = self._parse_data_tables_section(lines, i)
                 doc.data_tables.extend(tables)
                 continue
             
-            # Pathology
-            elif line.startswith('## 病理检测'):
+            # Pathology - support both ## and ##  formats
+            elif line.startswith('## 病理检测') or line.startswith('##  病理检测'):
                 doc.pathology, i = self._parse_pathology_section(lines, i)
                 continue
             
-            # Mechanism
-            elif line.startswith('## 机制研究结果'):
+            # Mechanism - support both ## and ##  formats
+            elif line.startswith('## 机制研究结果') or line.startswith('##  机制研究结果'):
                 doc.mechanism, tables, i = self._parse_mechanism_section(lines, i)
                 doc.mechanism_data_tables.extend(tables)
                 continue
             
-            # Other tests
-            elif line.startswith('## 其他检测'):
+            # Other tests - support both ## and ##  formats
+            elif line.startswith('## 其他检测') or line.startswith('##  其他检测'):
                 tables, i = self._parse_other_tests_section(lines, i)
                 doc.other_data_tables.extend(tables)
                 continue
             
-            # Conclusion
-            elif line.startswith('## 研究结论'):
+            # Conclusion - support both ## and ##  formats
+            elif line.startswith('## 研究结论') or line.startswith('##  研究结论'):
                 doc.conclusion, i = self._parse_conclusion_section(lines, i)
                 continue
             
-            # Keywords
-            elif line.startswith('## 关键词'):
+            # Keywords - support both ## and ##  formats
+            elif line.startswith('## 关键词') or line.startswith('##  关键词'):
                 doc.keywords, i = self._parse_keywords_section(lines, i)
                 continue
             
