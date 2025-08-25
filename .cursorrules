@@ -60,5 +60,6 @@ tests/      - Comprehensive test suite with real data
 - **Git Flow**: Work in `beta` branch, commit after each milestone completion
 - **Plan Updates**: Mark `[ ]` to `[x]` in `plan.md` when tasks are completed
 - **Testing**: All 61+ tests must pass before any git commits
+- **Documentation**: After implementing new features, always update `description.md` to reflect the latest system capabilities and usage instructions
 
 Follow the detailed rules in `.cursor/rules/` for specific guidance on coding standards, architecture, domain handling, testing, and LLM integration.

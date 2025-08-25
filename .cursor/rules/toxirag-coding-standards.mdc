@@ -97,3 +97,4 @@ conda activate toxirag && pip freeze | grep new-package >> requirements.txt
 - Document expected data formats and units for toxicology parameters
 - Provide usage examples with realistic toxicology study scenarios
 - Reference specific sections of toxicology papers when applicable
+- **ALWAYS UPDATE description.md**: After implementing new features, immediately update `description.md` to reflect the latest system capabilities and usage instructions

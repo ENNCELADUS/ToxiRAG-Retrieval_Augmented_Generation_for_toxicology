@@ -176,6 +176,29 @@ Success criteria
   - Redact PII in logs; add `.env.example` guidance for secrets handling
   - Document data handling boundaries (local only by default)
 
+### M8 — Comprehensive Technical Documentation ✅ COMPLETED
+- [x] Create comprehensive `description.md` with technical architecture:
+  - Detailed technical explanation of each module (ingest, retriever, llm, config, utils)
+  - Data flow diagrams and component interaction patterns
+  - Implementation details of normalization, chunking, embedding, and retrieval algorithms
+  - Database schema and vector store organization
+- [x] Complete CLI usage manual:
+  - Detailed documentation for all scripts (ingest_md.py, reindex.py, eval_run.py)
+  - Command-line options, examples, and troubleshooting
+  - Environment setup and configuration management
+  - Performance tuning and optimization guidelines
+- [x] Complete GUI usage manual:
+  - Step-by-step Streamlit app workflow documentation
+  - Feature explanations for ingestion, search, and analysis interfaces
+  - Configuration options and advanced settings
+  - Error handling and troubleshooting guide
+- [x] Developer guide and API reference:
+  - Code architecture and design patterns
+  - Extension points and customization options
+  - Testing strategies and contribution guidelines
+  - Performance benchmarks and scaling considerations
+- [x] **Git**: Commit M8 documentation to beta branch and push
+
 ## Scale target
 - Support pilot corpus of 500–1,000 Markdown docs for ingest and retrieval
 
