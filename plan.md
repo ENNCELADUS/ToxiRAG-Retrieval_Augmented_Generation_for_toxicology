@@ -147,10 +147,15 @@ Success criteria
 - New contributors can ingest and query within 10 minutes using README
 
 ### M7 — Finetuning for Production Usage (config, UX, ops)
-- [ ] Configure durable LanceDB path (no `/tmp`):
+- [x] Configure durable LanceDB path (no `/tmp`):
   - Default `LANCEDB_URI` to a project data dir (e.g., `data/knowledge_base/lancedb/toxicology_docs.lance`)
   - Add rotation/backup policy and simple health check command
   - Versioned tables and reindex script (`scripts/reindex.py`) documentation
+- [ ] Implement real-time deduplication during ingestion:
+  - Add content hash checking before inserting new chunks into LanceDB
+  - Prevent duplicate content blocks from entering database during upload/ingest process
+  - Show duplicate detection warnings in UI with skip/overwrite options
+  - Maintain ingestion performance while ensuring data uniqueness
 - [ ] Evidence jump/locating in UI:
   - Store precise source anchors: file path, section header slug, and optional page index
   - Add "Open source" button per citation → scroll/anchor to the section in a preview panel
