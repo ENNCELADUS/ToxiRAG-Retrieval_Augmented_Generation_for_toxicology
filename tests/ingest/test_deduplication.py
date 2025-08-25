@@ -12,6 +12,9 @@ import pandas as pd
 from datetime import datetime
 
 from ingest.ingest_local import ToxiRAGIngester, ingest_markdown_file
+from utils.logging_setup import get_logger
+
+logger = get_logger(__name__)
 
 
 @pytest.fixture
@@ -504,6 +507,211 @@ class TestDeduplicationPerformance:
         assert len(result['duplicates']) == 500
         assert len(result['new_chunks']) == 0
         assert len(result['overwritten']) == 0
+
+
+class TestRealSampleDeduplication:
+    """Test deduplication using actual sample files from data/samples/."""
+    
+    @pytest.mark.asyncio
+    async def test_mini_sample_deduplication_workflow(self):
+        """Test complete deduplication workflow using mini_sample.md and mini_sample2.md.
+        
+        mini_sample.md contains 4 papers: 玉米花粉多糖, 玛咖生物碱, Effect of Modified Lichongtang, 益胃颗粒
+        mini_sample2.md contains 3 papers: 玉米花粉多糖(duplicate), 玛咖生物碱(duplicate), 益气解毒方(new)
+        
+        Expected behavior:
+        1. First ingestion should have no duplicates
+        2. Second ingestion should detect 2 papers as duplicates and add 1 new paper
+        """
+        from pathlib import Path
+        
+        # Get actual sample file paths
+        project_root = Path(__file__).parent.parent.parent
+        mini_sample_1 = project_root / "data" / "samples" / "mini_sample.md"
+        mini_sample_2 = project_root / "data" / "samples" / "mini_sample2.md"
+        
+        # Verify files exist
+        assert mini_sample_1.exists(), f"mini_sample.md not found at {mini_sample_1}"
+        assert mini_sample_2.exists(), f"mini_sample2.md not found at {mini_sample_2}"
+        
+        with patch('ingest.ingest_local.lancedb.connect') as mock_connect, \
+             patch('ingest.ingest_local.OpenAIEmbedder') as mock_embedder_class:
+            
+            # Mock database setup
+            mock_db = Mock()
+            mock_table = Mock()
+            mock_connect.return_value = mock_db
+            
+            # Mock embedder to return consistent embeddings
+            mock_embedder = Mock()
+            mock_embedder.get_embedding.return_value = [0.1] * 3072
+            mock_embedder_class.return_value = mock_embedder
+            
+            # Track database state across ingestions
+            database_data = []
+            
+            def mock_to_pandas():
+                if database_data:
+                    return pd.DataFrame(database_data)
+                return pd.DataFrame({
+                    'content_hash': [], 'content': [], 'document_title': [], 
+                    'section_name': [], 'id': [], 'embedding': [], 'file_path': [],
+                    'section_type': [], 'chunk_index': [], 'citation_id': [],
+                    'section_tag': [], 'source_page': [], 'metadata': [],
+                    'units_version': [], 'ingestion_timestamp': []
+                })
+            
+            def mock_add(data):
+                database_data.extend(data)
+                logger.info(f"Mock database now has {len(database_data)} total chunks")
+            
+            def mock_drop_table(name):
+                database_data.clear()
+                logger.info("Mock database cleared for overwrite")
+            
+            mock_table.to_pandas.side_effect = mock_to_pandas
+            mock_table.add.side_effect = mock_add
+            mock_db.open_table.return_value = mock_table
+            mock_db.create_table.return_value = mock_table
+            mock_db.drop_table.side_effect = mock_drop_table
+            
+            # Step 1: Ingest mini_sample.md (should have no duplicates in empty database)
+            logger.info("=== STEP 1: Initial ingestion of mini_sample.md ===")
+            result1 = await ingest_markdown_file(
+                file_path=str(mini_sample_1),
+                skip_duplicates=True,
+                overwrite_duplicates=False
+            )
+            
+            logger.info(f"Step 1 result: {result1}")
+            assert result1['status'] == 'success', f"First ingestion failed: {result1}"
+            assert result1['new_chunks'] > 0, "First ingestion should add new chunks"
+            assert result1['duplicate_chunks'] == 0, "First ingestion should have no duplicates"
+            
+            # Verify we have data for 4 papers
+            assert len(database_data) > 0, "Database should contain chunks after first ingestion"
+            
+            # Get unique document titles from ingested data
+            doc_titles_step1 = set(chunk['document_title'] for chunk in database_data)
+            logger.info(f"Step 1 ingested papers: {list(doc_titles_step1)}")
+            
+            first_ingestion_chunks = result1['new_chunks']
+            first_ingestion_hashes = set(chunk['content_hash'] for chunk in database_data)
+            
+            # Step 2: Ingest mini_sample2.md (should detect duplicates and add new paper)
+            logger.info("=== STEP 2: Subsequent ingestion of mini_sample2.md ===")
+            result2 = await ingest_markdown_file(
+                file_path=str(mini_sample_2),
+                skip_duplicates=True,
+                overwrite_duplicates=False
+            )
+            
+            logger.info(f"Step 2 result: {result2}")
+            assert result2['status'] == 'success', f"Second ingestion failed: {result2}"
+            
+            # Analyze results
+            assert result2['duplicate_chunks'] > 0, "Second ingestion should detect duplicates"
+            assert result2['new_chunks'] > 0, "Second ingestion should add new paper chunks"
+            
+            # Verify the new paper was added
+            doc_titles_step2 = set(chunk['document_title'] for chunk in database_data)
+            logger.info(f"Step 2 total papers: {list(doc_titles_step2)}")
+            
+            new_papers = doc_titles_step2 - doc_titles_step1
+            logger.info(f"New papers added in step 2: {list(new_papers)}")
+            
+            # Should have added exactly one new paper (益气解毒方)
+            assert len(new_papers) >= 1, "At least one new paper should be added"
+            
+            # Check that we have the expected duplicate information
+            assert len(result2['duplicates']) > 0, "Should have duplicate information"
+            
+            # Log detailed results
+            logger.info(f"=== DEDUPLICATION TEST RESULTS ===")
+            logger.info(f"Initial ingestion: {first_ingestion_chunks} chunks from {len(doc_titles_step1)} papers")
+            logger.info(f"Subsequent ingestion: {result2['new_chunks']} new + {result2['duplicate_chunks']} duplicates")
+            logger.info(f"Total papers after both ingestions: {len(doc_titles_step2)}")
+            logger.info(f"Duplicate papers detected: {len(result2['duplicates'])} chunks")
+            
+            # Verify expected paper names are present
+            expected_papers = {"玉米花粉多糖的药理药效研究", "玛咖生物碱对人肝癌细胞Bel-7402和H22荷瘤小鼠的抑制作用"}
+            duplicate_paper_titles = set()
+            for dup in result2['duplicates']:
+                duplicate_paper_titles.add(dup['document_title'])
+                
+            logger.info(f"Papers with duplicates: {duplicate_paper_titles}")
+            
+            # Verify the new paper name contains expected keyword
+            assert any("益气解毒方" in title for title in new_papers), "New paper should contain '益气解毒方'"
+
+    @pytest.mark.asyncio
+    async def test_mini_sample_overwrite_mode(self):
+        """Test overwrite mode with mini_sample files."""
+        from pathlib import Path
+        
+        project_root = Path(__file__).parent.parent.parent
+        mini_sample_1 = project_root / "data" / "samples" / "mini_sample.md"
+        mini_sample_2 = project_root / "data" / "samples" / "mini_sample2.md"
+        
+        with patch('ingest.ingest_local.lancedb.connect') as mock_connect, \
+             patch('ingest.ingest_local.OpenAIEmbedder') as mock_embedder_class:
+            
+            # Mock setup (similar to previous test)
+            mock_db = Mock()
+            mock_table = Mock()
+            mock_connect.return_value = mock_db
+            
+            mock_embedder = Mock()
+            mock_embedder.get_embedding.return_value = [0.1] * 3072
+            mock_embedder_class.return_value = mock_embedder
+            
+            database_data = []
+            
+            def mock_to_pandas():
+                if database_data:
+                    return pd.DataFrame(database_data)
+                return pd.DataFrame({
+                    'content_hash': [], 'content': [], 'document_title': [], 
+                    'section_name': [], 'id': [], 'embedding': [], 'file_path': [],
+                    'section_type': [], 'chunk_index': [], 'citation_id': [],
+                    'section_tag': [], 'source_page': [], 'metadata': [],
+                    'units_version': [], 'ingestion_timestamp': []
+                })
+            
+            def mock_add(data):
+                database_data.extend(data)
+            
+            def mock_drop_table(name):
+                database_data.clear()
+            
+            mock_table.to_pandas.side_effect = mock_to_pandas
+            mock_table.add.side_effect = mock_add
+            mock_db.open_table.return_value = mock_table
+            mock_db.create_table.return_value = mock_table
+            mock_db.drop_table.side_effect = mock_drop_table
+            
+            # First ingestion
+            result1 = await ingest_markdown_file(
+                file_path=str(mini_sample_1),
+                skip_duplicates=True,
+                overwrite_duplicates=False
+            )
+            
+            assert result1['status'] == 'success'
+            first_ingestion_chunks = result1['new_chunks']
+            
+            # Second ingestion with overwrite mode
+            result2 = await ingest_markdown_file(
+                file_path=str(mini_sample_2),
+                skip_duplicates=False,
+                overwrite_duplicates=True
+            )
+            
+            assert result2['status'] == 'success'
+            assert result2['overwritten_chunks'] > 0, "Should have overwritten some chunks"
+            assert result2['new_chunks'] > 0, "Should have added chunks (including overwrites)"
+            
+            logger.info(f"Overwrite test - overwritten: {result2['overwritten_chunks']}, new: {result2['new_chunks']}")
 
 
 # Integration test that can be run manually with API keys

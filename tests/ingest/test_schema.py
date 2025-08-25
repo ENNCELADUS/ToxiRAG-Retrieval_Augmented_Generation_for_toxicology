@@ -16,7 +16,7 @@ class TestMarkdownParser:
     
     def test_parse_title(self):
         """Test parsing document title."""
-        content = """# 甘草酸对肝癌小鼠的毒性研究
+        content = """# 论文标题: 甘草酸对肝癌小鼠的毒性研究
 （来源：p.1 / Journal of TCM / DOI:xxx）
 
 ## 实验小鼠1信息
@@ -29,7 +29,7 @@ class TestMarkdownParser:
     
     def test_parse_animal_info(self):
         """Test parsing animal information."""
-        content = """# Test Document
+        content = """# 论文标题: Test Document
 
 ## 实验小鼠1信息
 - 品系: C57BL/6J
@@ -83,7 +83,7 @@ class TestMarkdownParser:
     
     def test_parse_timeline(self):
         """Test timeline parsing."""
-        content = """# Test Document
+        content = """# 论文标题: Test Document
 
 ## 实验时间线简表
 | 时间点 | 操作内容           |
@@ -103,7 +103,7 @@ class TestMarkdownParser:
     
     def test_parse_data_table(self):
         """Test data table parsing."""
-        content = """# Test Document
+        content = """# 论文标题: Test Document
 
 ## 数据记录表格
 
@@ -127,7 +127,7 @@ class TestMarkdownParser:
     
     def test_parse_keywords(self):
         """Test keywords parsing."""
-        content = """# Test Document
+        content = """# 论文标题: Test Document
 
 ## 关键词
 `#动物实验` `#肿瘤模型` `#药效评价` `#机制研究`
@@ -140,7 +140,7 @@ class TestMarkdownParser:
     
     def test_empty_content(self):
         """Test parsing empty or minimal content."""
-        content = "# Empty Document"
+        content = "# 论文标题: Empty Document"
         doc = self.parser.parse_content(content)
         
         assert doc.title == "Empty Document"
@@ -151,16 +151,53 @@ class TestMarkdownParser:
     def test_parse_file(self, tmp_path):
         """Test parsing from file."""
         test_file = tmp_path / "test.md"
-        test_file.write_text("""# 测试文档
+        test_file.write_text("""# 论文标题: 测试文档
 
 ## 实验小鼠1信息
 - 品系: KM
 - 总数: 20只
 """, encoding='utf-8')
         
-        doc = self.parser.parse_file(test_file)
+        documents = self.parser.parse_file(test_file)
         
+        assert len(documents) == 1
+        doc = documents[0]
         assert doc.title == "测试文档"
         assert doc.file_path == str(test_file)
         assert doc.mice_info_1.strain == "KM"
         assert doc.mice_info_1.strain_norm == "KM"
+    
+    def test_parse_multiple_documents_file(self, tmp_path):
+        """Test parsing multiple documents from a single file."""
+        test_file = tmp_path / "multi_test.md"
+        test_file.write_text("""# 论文标题: 第一个文档
+
+## 实验小鼠1信息
+- 品系: C57BL/6J
+- 总数: 20只
+
+---
+# 论文标题: 第二个文档
+
+## 实验小鼠1信息
+- 品系: BALB/c
+- 总数: 30只
+
+---
+#  论文标题: 第三个文档
+
+## 实验小鼠1信息
+- 品系: KM
+- 总数: 40只
+""", encoding='utf-8')
+        
+        documents = self.parser.parse_file(test_file)
+        
+        assert len(documents) == 3
+        assert documents[0].title == "第一个文档"
+        assert documents[1].title == "第二个文档"
+        assert documents[2].title == "第三个文档"
+        
+        assert documents[0].mice_info_1.strain == "C57BL/6J"
+        assert documents[1].mice_info_1.strain == "BALB/c"
+        assert documents[2].mice_info_1.strain == "KM"

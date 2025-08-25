@@ -86,6 +86,25 @@ python scripts/reindex.py --verbose
 
 ## Troubleshooting
 
+### Proxy Network Environments ✅ AUTO-FIXED
+**ToxiRAG automatically handles proxy environments!** No manual setup needed.
+
+The application includes built-in proxy bypass for OpenAI API access. When you start the app, it automatically:
+- Clears proxy environment variables that interfere with OpenAI API  
+- Sets `NO_PROXY` to include OpenAI domains (`api.openai.com`, `*.openai.com`)
+- Shows "🔓 代理绕过已启用 (OpenAI API)" indicator in the sidebar
+
+**Manual alternatives** (if needed):
+```bash
+# Option 1: Use the startup script
+./run_toxirag.sh
+
+# Option 2: Manual environment setup
+unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy
+export NO_PROXY="api.openai.com,*.openai.com,openai.com,localhost,127.0.0.1"
+streamlit run app/main_app.py
+```
+
 ### Missing API keys
 - Ensure `.env` has `OPENAI_API_KEY` and/or `GOOGLE_API_KEY`
 - Streamlit/eval/ingest will fail if keys are missing (except `--dry-run`)
