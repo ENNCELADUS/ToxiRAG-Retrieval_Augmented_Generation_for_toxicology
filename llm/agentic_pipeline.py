@@ -127,11 +127,13 @@ class ToxiRAGAgent:
                 # GPT-5 models have specific parameter requirements
                 if "gpt-5" in self.model_id.lower():
                     model_params["max_completion_tokens"] = self.max_tokens
-                    # GPT-5-nano only supports temperature=1 (default), don't set custom temperature
-                    if "gpt-5-nano" not in self.model_id.lower():
-                        model_params["temperature"] = self.temperature
+                    # GPT-5-nano only supports temperature=1, other GPT-5 models may support custom temperatures
+                    if "gpt-5-nano" in self.model_id.lower():
+                        model_params["temperature"] = 1.0  # Force temperature=1 for GPT-5-nano
+                        logger.info(f"GPT-5-nano using required temperature=1.0 (requested: {self.temperature})")
                     else:
-                        logger.info(f"GPT-5-nano uses default temperature=1, ignoring custom temperature={self.temperature}")
+                        model_params["temperature"] = self.temperature
+                        logger.info(f"GPT-5 model {self.model_id} using temperature={self.temperature}")
                 else:
                     model_params["max_tokens"] = self.max_tokens
                     model_params["temperature"] = self.temperature
@@ -338,6 +340,11 @@ Always structure responses with:
         
         logger.info(f"Built evidence pack with {len(citation_ids)} citations, confidence: {confidence_score:.2f}")
         
+        # Debug: Log evidence pack content
+        logger.debug(f"Evidence text length: {len(evidence_text)} chars")
+        logger.debug(f"Citation IDs: {citation_ids}")
+        logger.debug(f"Evidence preview: {evidence_text[:300]}...")
+        
         return EvidencePack(
             query=query,
             retrieved_docs=retrieved_docs,
@@ -384,15 +391,64 @@ Always structure responses with:
         """
         
         try:
+            # Debug: Log the enhanced query being sent to LLM
+            logger.debug(f"Sending query to LLM (length: {len(enhanced_query)} chars)")
+            logger.debug(f"Query preview: {enhanced_query[:500]}...")
+            
             # Generate response with selected agent
+            logger.info(f"Starting LLM call to {agent.__class__.__name__}")
             response = agent.run(enhanced_query)
+            logger.info(f"LLM call completed")
+            
             response_text = response.content
             
-            # Extract reasoning steps if available
-            reasoning_steps = getattr(response, 'reasoning_steps', ["Response generated with evidence-based analysis"])
+            # Debug: Log the raw response
+            logger.debug(f"Raw LLM response (length: {len(response_text)} chars)")
+            logger.debug(f"Response preview: {response_text[:500]}...")
+            
+            # Check for empty response (GPT-5-nano known issue)
+            if not response_text or len(response_text.strip()) == 0:
+                logger.warning(f"Empty response from {self.model_id}, attempting fallback to GPT-4o-mini")
+                
+                # Create fallback agent with GPT-4o-mini
+                fallback_model = OpenAIChat(
+                    id="gpt-4o-mini",
+                    api_key=self.openai_api_key,
+                    max_tokens=self.max_tokens,
+                    temperature=self.temperature
+                )
+                
+                fallback_agent = Agent(
+                    model=fallback_model,
+                    tools=[] if not use_reasoning_tools else [ReasoningTools(add_instructions=True)],
+                    instructions=self._get_toxicology_instructions(),
+                    show_tool_calls=True,
+                    markdown=True
+                )
+                
+                logger.info(f"Starting fallback LLM call to GPT-4o-mini")
+                fallback_response = fallback_agent.run(enhanced_query)
+                logger.info(f"Fallback LLM call completed")
+                
+                response_text = fallback_response.content
+                logger.info(f"Fallback response length: {len(response_text)} chars")
+                logger.debug(f"Fallback response preview: {response_text[:500]}...")
+                
+                # Add fallback notification to reasoning steps
+                reasoning_steps = [
+                    f"注意: {self.model_id} 返回空响应，已自动切换到 GPT-4o-mini",
+                    "Response generated with evidence-based analysis using fallback model"
+                ]
+            else:
+                # Extract reasoning steps if available
+                reasoning_steps = getattr(response, 'reasoning_steps', ["Response generated with evidence-based analysis"])
             
             # Extract citations from response
             citations = re.findall(r'\[E\d+ · [^\]]+\]', response_text)
+            
+            # Debug: Log citation extraction details
+            logger.debug(f"Citation regex pattern: r'\\[E\\d+ · [^\\]]+\\]'")
+            logger.debug(f"Found citations: {citations}")
             
             logger.info(f"Generated response with {len(citations)} citations")
             
