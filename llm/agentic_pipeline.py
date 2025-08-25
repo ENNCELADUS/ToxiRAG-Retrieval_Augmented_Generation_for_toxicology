@@ -118,12 +118,25 @@ class ToxiRAGAgent:
             
             # Create base model
             if self.llm_provider == "openai":
-                model = OpenAIChat(
-                    id=self.model_id, 
-                    api_key=self.openai_api_key,
-                    max_tokens=self.max_tokens,
-                    temperature=self.temperature
-                )
+                # Use max_completion_tokens for GPT-5 models, max_tokens for others
+                model_params = {
+                    "id": self.model_id,
+                    "api_key": self.openai_api_key
+                }
+                
+                # GPT-5 models have specific parameter requirements
+                if "gpt-5" in self.model_id.lower():
+                    model_params["max_completion_tokens"] = self.max_tokens
+                    # GPT-5-nano only supports temperature=1 (default), don't set custom temperature
+                    if "gpt-5-nano" not in self.model_id.lower():
+                        model_params["temperature"] = self.temperature
+                    else:
+                        logger.info(f"GPT-5-nano uses default temperature=1, ignoring custom temperature={self.temperature}")
+                else:
+                    model_params["max_tokens"] = self.max_tokens
+                    model_params["temperature"] = self.temperature
+                    
+                model = OpenAIChat(**model_params)
             else:  # gemini
                 model = Gemini(
                     id=self.model_id,
@@ -258,7 +271,7 @@ Always structure responses with:
         logger.info(f"Decomposed query into {len(base_subqueries)} sub-queries")
         return base_subqueries
 
-    async def retrieve_evidence(self, sub_queries: List[str], collection_name: str = "tcm_tox") -> List[Dict[str, Any]]:
+    async def retrieve_evidence(self, sub_queries: List[str], collection_name: str = "toxicology_docs") -> List[Dict[str, Any]]:
         """Retrieve evidence for multiple sub-queries with deduplication."""
         all_docs = []
         seen_content = set()
@@ -408,7 +421,7 @@ Always structure responses with:
 
 async def create_agentic_response(query: str, 
                                 config: Dict[str, Any],
-                                collection_name: str = "tcm_tox",
+                                collection_name: str = "toxicology_docs",
                                 use_reasoning_tools: bool = True) -> AgenticResponse:
     """
     Main entry point for creating agentic responses.

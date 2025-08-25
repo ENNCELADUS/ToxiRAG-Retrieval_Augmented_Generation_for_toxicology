@@ -105,24 +105,32 @@ class ToxiRAGIngester:
         logger.info(f"Processing file: {file_path}")
         
         try:
-            # Parse document
-            doc = self.parser.parse_file(file_path)
-            logger.info(f"Parsed document: {doc.title}")
+            # Parse documents (may be multiple in one file)
+            documents = self.parser.parse_file(file_path)
+            logger.info(f"Parsed {len(documents)} documents from file")
             
-            # Chunk document
-            chunks = self.chunker.chunk_document(doc)
-            logger.info(f"Generated {len(chunks)} chunks")
+            # Process all documents
+            all_chunks = []
+            processed_docs = []
+            
+            for doc in documents:
+                logger.info(f"Processing document: {doc.title}")
+                chunks = self.chunker.chunk_document(doc)
+                all_chunks.extend(chunks)
+                processed_docs.append(doc)
+            
+            logger.info(f"Generated {len(all_chunks)} total chunks from {len(documents)} documents")
             
             if dry_run:
                 return {
                     "file_path": str(file_path),
-                    "document_title": doc.title,
-                    "chunks": len(chunks),
+                    "document_title": f"{len(documents)} documents: {', '.join([doc.title for doc in documents[:3]])}{'...' if len(documents) > 3 else ''}",
+                    "chunks": len(all_chunks),
                     "status": "parsed_only"
                 }
             
             # Generate embeddings and prepare data
-            ingestion_data = await self._prepare_ingestion_data(chunks, doc)
+            ingestion_data = await self._prepare_ingestion_data(all_chunks, processed_docs)
             
             # Check for duplicates and filter accordingly
             dedup_result = await self._handle_duplicates(ingestion_data, skip_duplicates, overwrite_duplicates)
@@ -134,12 +142,14 @@ class ToxiRAGIngester:
             
             return {
                 "file_path": str(file_path),
-                "document_title": doc.title,
-                "chunks": len(chunks),
+                "document_title": f"{len(documents)} documents processed",
+                "chunks": len(all_chunks),
                 "new_chunks": len(dedup_result["new_chunks"]),
                 "duplicate_chunks": len(dedup_result["duplicates"]),
                 "overwritten_chunks": len(dedup_result["overwritten"]),
                 "duplicates": dedup_result["duplicates"],
+                "processed_chunks": dedup_result["new_chunks"][:10],  # Include first 10 processed chunks for preview
+                "documents": [{"title": doc.title, "chunks": len(self.chunker.chunk_document(doc))} for doc in processed_docs],
                 "status": "success"
             }
             
@@ -178,14 +188,14 @@ class ToxiRAGIngester:
             "results": results
         }
     
-    async def _prepare_ingestion_data(self, chunks: List[DocumentChunk], doc: ToxicologyDocument) -> List[Dict[str, Any]]:
+    async def _prepare_ingestion_data(self, chunks: List[DocumentChunk], docs: List[ToxicologyDocument]) -> List[Dict[str, Any]]:
         """Prepare chunk data for ingestion including embeddings."""
         ingestion_data = []
         timestamp = datetime.utcnow()
         
         # Generate embeddings for all chunks
         contents = [chunk.content for chunk in chunks]
-        logger.info(f"Generating embeddings for {len(contents)} chunks...")
+        logger.info(f"Generating embeddings for {len(contents)} chunks from {len(docs)} documents...")
         
         # Generate embeddings synchronously (OpenAI embedder is not async)
         embeddings = []
@@ -197,16 +207,27 @@ class ToxiRAGIngester:
             # Generate content hash for deduplication
             content_hash = self._generate_content_hash(chunk.content)
             
+            # Find the corresponding document for this chunk
+            corresponding_doc = None
+            for doc in docs:
+                if doc.title == chunk.document_title:
+                    corresponding_doc = doc
+                    break
+            
+            # Fallback to first doc if not found
+            if corresponding_doc is None:
+                corresponding_doc = docs[0] if docs else ToxicologyDocument(title="Unknown", units_version="v1.0")
+            
             # Prepare metadata as JSON
             metadata = {
                 **(chunk.metadata or {}),
-                "units_version": doc.units_version,
-                "document_keywords": doc.keywords,
-                "original_file_path": doc.file_path
+                "units_version": corresponding_doc.units_version,
+                "document_keywords": corresponding_doc.keywords,
+                "original_file_path": corresponding_doc.file_path
             }
             
             record = {
-                "id": f"{Path(doc.file_path).stem}_{chunk.chunk_index}_{content_hash[:8]}",
+                "id": f"{chunk.document_title}_{chunk.chunk_index}_{content_hash[:8]}".replace(" ", "_"),
                 "content": chunk.content,
                 "embedding": embedding,
                 "document_title": chunk.document_title,
@@ -218,7 +239,7 @@ class ToxiRAGIngester:
                 "section_tag": chunk.section_tag or "",
                 "source_page": chunk.source_page or "",
                 "metadata": json.dumps(metadata, ensure_ascii=False),
-                "units_version": doc.units_version,
+                "units_version": corresponding_doc.units_version,
                 "ingestion_timestamp": timestamp,
                 "content_hash": content_hash
             }

@@ -3,6 +3,7 @@ ToxiRAG Configuration Settings
 Centralized configuration using pydantic-settings for type safety and validation.
 """
 
+import os
 from pathlib import Path
 from typing import Literal, Optional
 from pydantic import validator
@@ -45,6 +46,9 @@ class ToxiRAGSettings(BaseSettings):
     debug: bool = False
     environment: str = "development"
     
+    # Network Configuration
+    no_proxy: Optional[str] = None
+    
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
@@ -63,6 +67,19 @@ class ToxiRAGSettings(BaseSettings):
         """Ensure log directory exists."""
         path = Path(v).parent
         path.mkdir(parents=True, exist_ok=True)
+        return v
+    
+    @validator("no_proxy")
+    def set_no_proxy_env(cls, v):
+        """Set NO_PROXY environment variable for HTTP libraries."""
+        if v:
+            # Combine with existing NO_PROXY if present
+            current_no_proxy = os.environ.get('NO_PROXY', '')
+            if current_no_proxy and v not in current_no_proxy:
+                new_no_proxy = f"{current_no_proxy},{v}"
+            else:
+                new_no_proxy = v
+            os.environ['NO_PROXY'] = new_no_proxy
         return v
     
     def has_openai_key(self) -> bool:

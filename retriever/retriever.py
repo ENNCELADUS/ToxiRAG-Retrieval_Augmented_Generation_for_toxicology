@@ -460,7 +460,7 @@ async def search_documents(query: str,
 
 async def retrieve_relevant_docs(query: str,
                                 top_k: int = 5,
-                                collection_name: str = "tcm_tox",
+                                collection_name: str = "toxicology_docs",
                                 section_types: Optional[List[str]] = None,
                                 document_titles: Optional[List[str]] = None,
                                 vector_weight: float = 0.7,

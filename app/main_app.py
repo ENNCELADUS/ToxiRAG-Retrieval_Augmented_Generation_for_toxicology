@@ -16,6 +16,47 @@ project_root = Path(__file__).parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+def setup_proxy_bypass():
+    """Setup proxy bypass for OpenAI API access.
+    
+    This function clears proxy environment variables that may interfere with OpenAI API calls
+    and sets NO_PROXY to ensure OpenAI domains are properly bypassed.
+    """
+    # List of proxy environment variables that can interfere with OpenAI API
+    proxy_vars = ['HTTP_PROXY', 'HTTPS_PROXY', 'ALL_PROXY', 'http_proxy', 'https_proxy', 'all_proxy']
+    
+    # Track which proxy vars were cleared for logging
+    cleared_proxies = []
+    for var in proxy_vars:
+        if var in os.environ:
+            cleared_proxies.append(f"{var}={os.environ[var]}")
+            del os.environ[var]
+    
+    # Set NO_PROXY to ensure OpenAI domains are bypassed
+    openai_domains = "api.openai.com,*.openai.com,openai.com"
+    current_no_proxy = os.environ.get('NO_PROXY', '')
+    
+    if current_no_proxy:
+        # Combine with existing NO_PROXY if present and OpenAI domains not already included
+        if 'openai.com' not in current_no_proxy:
+            new_no_proxy = f"{current_no_proxy},{openai_domains}"
+        else:
+            new_no_proxy = current_no_proxy
+    else:
+        # Add standard local addresses along with OpenAI domains
+        new_no_proxy = f"{openai_domains},localhost,127.0.0.1,192.168.0.0/16,10.0.0.0/8,172.16.0.0/12,::1"
+    
+    os.environ['NO_PROXY'] = new_no_proxy
+    
+    # Log proxy configuration in development mode
+    if os.environ.get('DEBUG', '').lower() == 'true':
+        if cleared_proxies:
+            print(f"🔧 ToxiRAG: Cleared proxy variables: {', '.join(cleared_proxies)}")
+        print(f"✅ ToxiRAG: Set NO_PROXY={new_no_proxy}")
+
+# Setup proxy bypass before any OpenAI API calls
+setup_proxy_bypass()
+
 # Local imports (will be created)
 try:
     from ingest.ingest_local import ingest_markdown_file
@@ -55,6 +96,10 @@ def setup_page_config():
 def setup_sidebar() -> Dict[str, Any]:
     """Setup sidebar with API keys and model selection."""
     st.sidebar.title("🔧 配置设置")
+    
+    # Show proxy bypass status
+    if os.environ.get('NO_PROXY') and 'openai.com' in os.environ.get('NO_PROXY', ''):
+        st.sidebar.success("🔓 代理绕过已启用 (OpenAI API)")
     
     # API Keys section
     st.sidebar.subheader("API 密钥")
@@ -105,6 +150,11 @@ def setup_sidebar() -> Dict[str, Any]:
     st.sidebar.subheader("高级设置")
     max_tokens = st.sidebar.slider("最大生成长度", 100, 4000, 2000)
     temperature = st.sidebar.slider("温度", 0.0, 1.0, 0.1)
+    
+    # Show temperature limitation notice for GPT-5-nano
+    if selected_model == "gpt-5-nano":
+        st.sidebar.info("ℹ️ GPT-5-nano 仅支持默认温度 (1.0)")
+    
     top_k_docs = st.sidebar.slider("检索文档数量", 1, 20, 5)
     
     return {
@@ -221,8 +271,35 @@ def ingest_section(config: Dict[str, Any]):
                                                 st.write(f"**{dup['section_name']}** - {dup['document_title']}")
                                                 st.code(dup['content_preview'], language=None)
                                                 st.write("---")
+                                    
+                                    # Show processed chunks content preview
+                                    if new_chunks > 0:
+                                        with st.expander(f"📋 处理的内容 ({new_chunks} 个)", expanded=True):
+                                            processed_chunks = result.get('processed_chunks', [])
+                                            for i, chunk in enumerate(processed_chunks[:5]):  # Show first 5 chunks
+                                                st.write(f"**块 {i+1}: {chunk.get('section_name', '未知章节')}** - {chunk.get('document_title', uploaded_file.name)}")
+                                                content_preview = chunk.get('content', '')[:200] + "..." if len(chunk.get('content', '')) > 200 else chunk.get('content', '')
+                                                st.code(content_preview, language=None)
+                                                if chunk.get('section_type'):
+                                                    st.caption(f"章节类型: {chunk['section_type']}")
+                                                st.write("---")
+                                            if len(processed_chunks) > 5:
+                                                st.write(f"... 还有 {len(processed_chunks)-5} 个处理的内容块")
                                 else:
                                     st.success(f"✅ 文件摄取成功！处理了 {new_chunks} 个全新文档块")
+                                    # Show processed chunks content preview for simple success case
+                                    if new_chunks > 0:
+                                        with st.expander(f"📋 处理的内容 ({new_chunks} 个)", expanded=True):
+                                            processed_chunks = result.get('processed_chunks', [])
+                                            for i, chunk in enumerate(processed_chunks[:5]):  # Show first 5 chunks
+                                                st.write(f"**块 {i+1}: {chunk.get('section_name', '未知章节')}** - {chunk.get('document_title', uploaded_file.name)}")
+                                                content_preview = chunk.get('content', '')[:200] + "..." if len(chunk.get('content', '')) > 200 else chunk.get('content', '')
+                                                st.code(content_preview, language=None)
+                                                if chunk.get('section_type'):
+                                                    st.caption(f"章节类型: {chunk['section_type']}")
+                                                st.write("---")
+                                            if len(processed_chunks) > 5:
+                                                st.write(f"... 还有 {len(processed_chunks)-5} 个处理的内容块")
                             
                     except NameError as e:
                         st.error(f"❌ 摄取失败: {e}")
@@ -291,7 +368,7 @@ def gpt5_reasoning_tab(config: Dict[str, Any]):
                     response = asyncio.run(run_async_agentic_response(
                         query=query,
                         config=config,
-                        collection_name="tcm_tox",
+                        collection_name="toxicology_docs",
                         use_reasoning_tools=False  # Basic reasoning for this tab
                     ))
                     
